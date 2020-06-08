@@ -27,23 +27,22 @@ python main.py --dataset <path_to_data>
 
 ## Datasets
 
-| Dataset | Hyperparameters |
-| ------- | --------------- |
-| [METR-LA](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit) | `xxx` |
-| [PEMS-BAY](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit) |  |
-| [PEMS03](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit) |  |
-| [PEMS04](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit) |  |
-| [PEMS07](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit) |  |
-| [PEMS08](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit) |  |
-| [Solar](https://www.nrel.gov/grid/solar-power-data.html) |  |
-| [Electricity](https://archive.ics.uci.edu/ml/datasets/ElectricityLoadDiagrams20112014) |  |
-| [ECG](http://www.timeseriesclassification.com/description.php?Dataset=ECG5000) |  |
+[METR-LA](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit),
+[PEMS-BAY](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit),
+[PEMS03](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit),
+[PEMS04](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit),
+[PEMS07](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit),
+[PEMS08](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit),
+[Solar](https://www.nrel.gov/grid/solar-power-data.html),
+[Electricity](https://archive.ics.uci.edu/ml/datasets/ElectricityLoadDiagrams20112014),
+[ECG](http://www.timeseriesclassification.com/description.php?Dataset=ECG5000)
 
-Since some preprocessings need to be conducted on the above datasets provided in the urls before fed into StemGNN model, we provide a preprocessed version of XXXX (relative path to XXXX) for reproduction convenience.
+Since complex reorganizations need to be conducted on the above datasets provided in the urls before fed into StemGNN model, we provide a organized version of PEMS07 ([./dataset/PeMS07.csv](./dataset/PeMS07.csv)) for reproduction convenience. The PeMS07.csv is in shape of `T*N`, where `T` denotes total number of timestamps, `N` denotes number of nodes.
 
 ## Results
 
 Our model achieves the following performance on the 3 datasets included in the code repo:
+
 
 | Evaluation Method | Dataset 1  | Dataset 2 | Dataset 3 |
 | ------------------ |---------------- | -------------- |  -------------- |
