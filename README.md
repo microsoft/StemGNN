@@ -13,6 +13,8 @@ To install requirements:
 pip install -r requirements.txt
 ```
 
+Venv is recommended. Verified for pip==20.2b1 and setuptools==47.1.1.
+
 <!-- > 📋Describe how to set up the environment, e.g. pip/conda/docker commands, download datasets, etc... -->
 
 ## Training and Evaluation
@@ -20,7 +22,7 @@ pip install -r requirements.txt
 The training procedure and evaluation procedure are all included in the `main.py`. To train and evaluate on some dataset, run the following command:
 
 ```train & evaluate
-python main.py --dataset <path_to_data>
+python main.py --dataset <path to dataset> --output_dir <path to output directory>
 ```
 
 <!-- The hyperparameters are set as default pramaters for reproduction convenience, so no more parameters need to be specified in the above command. -->
@@ -37,7 +39,7 @@ python main.py --dataset <path_to_data>
 [Electricity](https://archive.ics.uci.edu/ml/datasets/ElectricityLoadDiagrams20112014),
 [ECG](http://www.timeseriesclassification.com/description.php?Dataset=ECG5000)
 
-Since complex reorganizations need to be conducted on the above datasets provided in the urls before fed into StemGNN model, we provide a organized version of PEMS07 ([./dataset/PeMS07.csv](./dataset/PeMS07.csv)) for reproduction convenience. The PeMS07.csv is in shape of `T*N`, where `T` denotes total number of timestamps, `N` denotes number of nodes.
+Since complex reorganizations need to be conducted on the above datasets provided in the urls before fed into StemGNN model, we provide an organized version of PEMS07 ([./dataset/PeMS07.csv](./dataset/PeMS07.csv)) for reproduction convenience. The PeMS07.csv is in shape of `T*N`, where `T` denotes total number of timestamps, `N` denotes number of nodes. Run command `python main.py` to trigger training and evaluation on PeMS07.csv.
 
 ## Results
 

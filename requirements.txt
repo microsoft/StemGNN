@@ -1,0 +1,5 @@
+numpy==1.18.5
+pandas==1.0.4
+tensorflow==1.15
+keras==2.3.1
+keras_self_attention==0.46.0
