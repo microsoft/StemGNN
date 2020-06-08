@@ -1,5 +1,3 @@
-
-
 from data_loader.data_utils import gen_batch
 from models.tester import model_inference
 from models.base_model import build_model, model_save
@@ -10,36 +8,38 @@ import numpy as np
 import time
 import logging
 import pandas as pd
+import os
 
 tf.disable_eager_execution()
 
+
 def print_num_of_total_parameters(output_detail=True, output_to_logging=False):
-	total_parameters = 0
-	parameters_string = ""
+    total_parameters = 0
+    parameters_string = ""
 
-	for variable in tf.trainable_variables():
+    for variable in tf.trainable_variables():
 
-		shape = variable.get_shape()
-		variable_parameters = 1
-		for dim in shape:
-			variable_parameters *= dim.value
-		total_parameters += variable_parameters
-		if len(shape) == 1:
-			parameters_string += ("%s %d, \n" % (variable.name, variable_parameters))
-		else:
-			parameters_string += ("%s %s=%d, \n" % (variable.name, str(shape), variable_parameters))
+        shape = variable.get_shape()
+        variable_parameters = 1
+        for dim in shape:
+            variable_parameters *= dim.value
+        total_parameters += variable_parameters
+        if len(shape) == 1:
+            parameters_string += ("%s %d, \n" % (variable.name, variable_parameters))
+        else:
+            parameters_string += ("%s %s=%d, \n" % (variable.name, str(shape), variable_parameters))
 
-	if output_to_logging:
-		if output_detail:
-			logging.info(parameters_string)
-		logging.info("Total %d variables, %s params" % (len(tf.trainable_variables()), "{:,}".format(total_parameters)))
-	else:
-		if output_detail:
-			print(parameters_string)
-		print("Total %d variables, %s params" % (len(tf.trainable_variables()), "{:,}".format(total_parameters)))
+    if output_to_logging:
+        if output_detail:
+            logging.info(parameters_string)
+        logging.info("Total %d variables, %s params" % (len(tf.trainable_variables()), "{:,}".format(total_parameters)))
+    else:
+        if output_detail:
+            print(parameters_string)
+        print("Total %d variables, %s params" % (len(tf.trainable_variables()), "{:,}".format(total_parameters)))
 
 
-def model_train(inputs, blocks, args, sum_path='./output/tensorboard'):
+def model_train(inputs, blocks, args, tensorboard_summary_dir, model_dir):
     '''
     Train the base model.
     :param inputs: instance of class Dataset, data source for training.
@@ -55,7 +55,7 @@ def model_train(inputs, blocks, args, sum_path='./output/tensorboard'):
     keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
     # Define model loss
-    train_loss, pred,e_value = build_model(x, n_his, Ks, Kt, blocks, keep_prob)
+    train_loss, pred, e_value = build_model(x, n_his, Ks, Kt, blocks, keep_prob)
     tf.summary.scalar('train_loss', train_loss)
     copy_loss = tf.add_n(tf.get_collection('copy_loss'))
     tf.summary.scalar('copy_loss', copy_loss)
@@ -82,9 +82,11 @@ def model_train(inputs, blocks, args, sum_path='./output/tensorboard'):
     merged = tf.summary.merge_all()
 
     with tf.Session() as sess:
-        writer = tf.summary.FileWriter(pjoin(sum_path, 'train'), sess.graph)
+        if not os.path.exists(tensorboard_summary_dir):
+            os.makedirs(tensorboard_summary_dir)
+        writer = tf.summary.FileWriter(pjoin(tensorboard_summary_dir), sess.graph)
         sess.run(tf.global_variables_initializer())
-        print("-----------------------------------------"*2)
+        print("-----------------------------------------" * 2)
         print_num_of_total_parameters()
         print("---------------**********-------------------" * 2)
 
@@ -113,13 +115,13 @@ def model_train(inputs, blocks, args, sum_path='./output/tensorboard'):
                     print(f'Epoch {i:2d}, Step {j:3d}: [{loss_value[0]:.3f}, {loss_value[1]:.3f}]')
             print(f'Epoch {i:2d} Training Time {time.time() - start_time:.3f}s')
 
-            #e_value_1 = sess.run([e_value], feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
+            # e_value_1 = sess.run([e_value], feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
 
-            #pd.DataFrame(e_value_1).to_csv("e_value" + str(i) + ".csv")
-
-
+            # pd.DataFrame(e_value_1).to_csv("e_value" + str(i) + ".csv")
+            if not os.path.exists(model_dir):
+                os.makedirs(model_dir)
             if (i + 1) % args.save == 0:
-                model_save(sess, global_steps, 'StemGNN')
+                model_save(sess, global_steps, 'StemGNN', model_dir)
                 start_time = time.time()
                 min_va_val, min_val = \
                     model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min_va_val, min_val)

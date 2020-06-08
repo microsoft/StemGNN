@@ -1,5 +1,3 @@
-
-
 from utils.math_utils import z_score
 
 import numpy as np
@@ -40,35 +38,33 @@ def seq_gen(len_seq, data_seq, offset, n_frame, n_route, day_slot, C_0=1, len_al
     '''
     n_slot = day_slot - n_frame + 1
 
-    #tmp_seq = np.zeros((len_seq * n_slot, n_frame, n_route, C_0))
+    # tmp_seq = np.zeros((len_seq * n_slot, n_frame, n_route, C_0))
     tmp_seq = np.zeros((len_all, n_frame, n_route, C_0))
     for i in range(len_all):
         sta = i
         end = sta + n_frame
-        tmp_seq[i , :, :, :] = np.reshape(data_seq[sta:end, :], [n_frame, n_route, C_0])
+        tmp_seq[i, :, :, :] = np.reshape(data_seq[sta:end, :], [n_frame, n_route, C_0])
     return tmp_seq
+
 
 def seq_gen_val(len_seq, data_seq, offset, n_frame, n_route, day_slot, C_0=1, len_all=10):
-
     tmp_seq = np.zeros((len_all, n_frame, n_route, C_0))
     for i in range(len_all):
-        sta = 50+i
+        sta = 50 + i
         end = sta + n_frame
-        tmp_seq[i , :, :, :] = np.reshape(data_seq[sta:end, :], [n_frame, n_route, C_0])
+        tmp_seq[i, :, :, :] = np.reshape(data_seq[sta:end, :], [n_frame, n_route, C_0])
 
     return tmp_seq
+
 
 def seq_gen_test(len_seq, data_seq, offset, n_frame, n_route, day_slot, C_0=1, len_all=10):
-
     tmp_seq = np.zeros((len_all, n_frame, n_route, C_0))
     for i in range(len_all):
-        sta = 50+i
+        sta = 50 + i
         end = sta + n_frame
-        tmp_seq[i , :, :, :] = np.reshape(data_seq[sta:end, :], [n_frame, n_route, C_0])
+        tmp_seq[i, :, :, :] = np.reshape(data_seq[sta:end, :], [n_frame, n_route, C_0])
 
     return tmp_seq
-
-
 
 
 def seq_val_gen(len_seq, data_seq, offset, n_frame, n_route, day_slot, C_0=1):
@@ -91,9 +87,8 @@ def seq_val_gen(len_seq, data_seq, offset, n_frame, n_route, day_slot, C_0=1):
         for j in range(n_slot):
             sta = (i + offset) * day_slot + j
             end = sta + n_frame
-            tmp_seq[i * n_slot + j, :, :, :] = np.reshape(data_seq[sta:end, :], [n_frame,n_route, C_0])
+            tmp_seq[i * n_slot + j, :, :, :] = np.reshape(data_seq[sta:end, :], [n_frame, n_route, C_0])
     return tmp_seq
-
 
 
 def data_gen(file_path, data_config, n_route, n_frame=21, day_slot=14):
@@ -110,15 +105,15 @@ def data_gen(file_path, data_config, n_route, n_frame=21, day_slot=14):
     n_train, n_val, n_test = data_config
     # generate training, validation and test data
     try:
-        #data_seq = pd.read_csv(file_path)
-        data_seq = pd.read_csv(file_path,header=None).values
-        #data_seq = data_seq.drop(['Country/Region','continent'], axis=1).values
-        #print(data_seq)
-        data_seq[data_seq<0] = 0
+        # data_seq = pd.read_csv(file_path)
+        data_seq = pd.read_csv(file_path, header=None).values
+        # data_seq = data_seq.drop(['Country/Region','continent'], axis=1).values
+        # print(data_seq)
+        data_seq[data_seq < 0] = 0
         print(data_seq.shape)
-        #data_seq=data_seq.T#[20:]
+        # data_seq=data_seq.T#[20:]
 
-        data_seq=data_seq[~(data_seq==0).all(axis=1), :] #原来应该是all
+        data_seq = data_seq[~(data_seq == 0).all(axis=1), :]
         print(data_seq.shape)
     except FileNotFoundError:
         print(f'ERROR: input file was not found in {file_path}.')
@@ -134,7 +129,6 @@ def data_gen(file_path, data_config, n_route, n_frame=21, day_slot=14):
     x_train = z_score(seq_train, x_stats['mean'], x_stats['std'])
     x_val = z_score(seq_val, x_stats['mean'], x_stats['std'])
     x_test = z_score(seq_test, x_stats['mean'], x_stats['std'])
-
 
     x_data = {'train': x_train, 'val': x_val, 'test': x_test}
     dataset = Dataset(x_data, x_stats)

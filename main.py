@@ -1,4 +1,3 @@
-
 import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -30,7 +29,8 @@ parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--opt', type=str, default='RMSProp')
 parser.add_argument('--graph', type=str, default='default')
 parser.add_argument('--inf_mode', type=str, default='merge')
-parser.add_argument('--dataset', type=str, default='PeMS07.csv')
+parser.add_argument('--dataset', type=str, default='./dataset/PeMS07.csv')
+parser.add_argument('--output_dir', type=str, default='./output/PeMS07')
 
 args = parser.parse_args()
 print(f'Training configs: {args}')
@@ -39,14 +39,15 @@ n, n_his, n_pred = args.n_route, args.n_his, args.n_pred
 Ks, Kt = args.ks, args.kt
 # blocks: settings of channel size in Spe-Seq Cell
 blocks = [[1, 32, 64], [64, 32, 128]]
-
+output_dir = args.output_dir
 
 # Data Preprocessing
 data_file = args.dataset
 n_train, n_val, n_test = 34, 5, 5
-PeMS = data_gen(pjoin('./dataset', data_file), (n_train, n_val, n_test), n, n_his + n_pred)
+PeMS = data_gen(data_file, (n_train, n_val, n_test), n, n_his + n_pred)
 print(f'>> Loading dataset with Mean: {PeMS.mean:.2f}, STD: {PeMS.std:.2f}')
 
 if __name__ == '__main__':
-    model_train(PeMS, blocks, args)
-    model_test(PeMS, PeMS.get_len('test'), n_his, n_pred, args.inf_mode)
+    model_train(PeMS, blocks, args, tensorboard_summary_dir=pjoin(output_dir, 'tensorboard'),
+                model_dir=pjoin(output_dir, 'model'))
+    model_test(PeMS, PeMS.get_len('test'), n_his, n_pred, args.inf_mode, load_path=pjoin(output_dir, 'model'))

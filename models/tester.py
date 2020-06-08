@@ -1,15 +1,14 @@
-
-
 from data_loader.data_utils import gen_batch
 from utils.math_utils import evaluation
 from os.path import join as pjoin
 
 import tensorflow as tf
-import numpy as np#
+import numpy as np
 import time
 import pandas as pd
 
 tf.disable_eager_execution()
+
 
 def z_score(x, mean, std):
     '''
@@ -21,7 +20,7 @@ def z_score(x, mean, std):
     :param std: float, the value of standard deviation.
     :return: np.ndarray, z-score normalized array.
     '''
-    #return x
+    # return x
     return (x - mean) / std
 
 
@@ -34,9 +33,10 @@ def z_inverse(x, mean, std):
     :return: np.ndarray, z-score inverse array.
     '''
 
-    #return x
+    # return x
 
     return x * std + mean
+
 
 def multi_pred(sess, y_pred, seq, batch_size, n_his, n_pred, step_idx, dynamic_batch=True):
     '''
@@ -68,7 +68,7 @@ def multi_pred(sess, y_pred, seq, batch_size, n_his, n_pred, step_idx, dynamic_b
         pred_list.append(step_list)
     #  pred_array -> [n_pred, batch_size, n_route, C_0)
     pred_array = np.concatenate(pred_list, axis=1)
-    return pred_array[step_idx], pred_array.shape[1],pred_array
+    return pred_array[step_idx], pred_array.shape[1], pred_array
 
 
 def model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min_va_val, min_val):
@@ -89,7 +89,7 @@ def model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min
     if n_his + n_pred > x_val.shape[1]:
         raise ValueError(f'ERROR: the value of n_pred "{n_pred}" exceeds the length limit.')
 
-    y_val, len_val,x_temp = multi_pred(sess, pred, x_val, batch_size, n_his, n_pred, step_idx)
+    y_val, len_val, x_temp = multi_pred(sess, pred, x_val, batch_size, n_his, n_pred, step_idx)
     evl_val = evaluation(x_val[0:len_val, step_idx + n_his, :, :], y_val, x_stats)
 
     # chks: indicator that reflects the relationship of values between evl_val and min_va_val.
@@ -97,13 +97,13 @@ def model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min
     # update the metric on test set, if model's performance got improved on the validation.
     if sum(chks):
         min_va_val[chks] = evl_val[chks]
-        y_pred, len_pred,x_temp = multi_pred(sess, pred, x_test, batch_size, n_his, n_pred, step_idx)
+        y_pred, len_pred, x_temp = multi_pred(sess, pred, x_test, batch_size, n_his, n_pred, step_idx)
         evl_pred = evaluation(x_test[0:len_pred, step_idx + n_his, :, :], y_pred, x_stats)
         min_val = evl_pred
     return min_va_val, min_val
 
 
-def model_test(inputs, batch_size, n_his, n_pred, inf_mode, load_path='./output/models/'):
+def model_test(inputs, batch_size, n_his, n_pred, inf_mode, load_path):
     '''
     Load and test saved model from the checkpoint.
     :param inputs: instance of class Dataset, data source for test.
@@ -139,7 +139,7 @@ def model_test(inputs, batch_size, n_his, n_pred, inf_mode, load_path='./output/
 
         x_test, x_stats = inputs.get_data('test'), inputs.get_stats()
 
-        y_test, len_test,y_all_data = multi_pred(test_sess, pred, x_test, batch_size, n_his, n_pred, step_idx)
+        y_test, len_test, y_all_data = multi_pred(test_sess, pred, x_test, batch_size, n_his, n_pred, step_idx)
         evl = evaluation(x_test[0:len_test, step_idx + n_his, :, :], y_test, x_stats)
         # for i in range(0,len(x_test)):
         #     y_pre = y_all_data[:,i,:,:]
