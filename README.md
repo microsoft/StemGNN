@@ -23,7 +23,23 @@ The training procedure and evaluation procedure are all included in the `main.py
 python main.py --dataset <path_to_data>
 ```
 
-The hyperparameters are set as default pramaters for reproduction convenience, so no more parameters need to be specified in the above command.
+<!-- The hyperparameters are set as default pramaters for reproduction convenience, so no more parameters need to be specified in the above command. -->
+
+## Datasets
+
+| Dataset | Hyperparameters |
+| ------- | --------------- |
+| [METR-LA](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit) | `xxx` |
+| [PEMS-BAY](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit) |  |
+| [PEMS03](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit) |  |
+| [PEMS04](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit) |  |
+| [PEMS07](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit) |  |
+| [PEMS08](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit) |  |
+| [Solar](https://www.nrel.gov/grid/solar-power-data.html) |  |
+| [Electricity](https://archive.ics.uci.edu/ml/datasets/ElectricityLoadDiagrams20112014) |  |
+| [ECG](http://www.timeseriesclassification.com/description.php?Dataset=ECG5000) |  |
+
+Since some preprocessings need to be conducted on the above datasets provided in the urls before fed into StemGNN model, we provide a preprocessed version of XXXX (relative path to XXXX) for reproduction convenience.
 
 ## Results
 
