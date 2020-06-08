@@ -41,14 +41,23 @@ Since complex reorganizations need to be conducted on the above datasets provide
 
 ## Results
 
-Our model achieves the following performance on the 3 datasets included in the code repo:
+Our model achieves the following performance on the 9 datasets included in the code repo:
 
+**Table 1** (predict horizon: 3 steps)
+| Dataset | MAE  | RMSE | MAPE(%) |
+| -----   | ---- | ---- | ---- |
+| METR-LA | 2.56 | 5.06 | 6.46 |
+| PEMS-BAY | 1.23 | 2.48 | 2.63 |
+| PEMS07 | 2.14 | 4.01 | 5.01 |
+| Solar | 1.52 | 1.53 | 1.42 |
+| Electricity | 0.04 | 0.06 | 14.77 |
+| ECG | 0.05 | 0.07 | 10.58 |
 
-| Evaluation Method | Dataset 1  | Dataset 2 | Dataset 3 |
-| ------------------ |---------------- | -------------- |  -------------- |
-| MAE  | xxx | xxx | xxx |
-| RMSE | xxx | xxx | xxx |
-| MAPE | xxx | xxx | xxx |
+**Table 2** (predict horizon: 12 steps)
+| Dataset | MAE  | RMSE | MAPE |
+| -----   | ---- | ---- | ---- |
+| PEMS03 | 14.32 | 21.64 | 16.24 |
+| PEMS04 | 20.24 | 32.15 | 10.03 |
+| PEMS08 | 15.83 | 24.93 | 9.26 |
 
 <!-- > 📋Include a table of results from your paper, and link back to the leaderboard for clarity and context. If your main result is a figure, include that figure and link to the command or notebook to reproduce it.  -->
-
