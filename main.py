@@ -4,6 +4,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 from os.path import join as pjoin
 
 import tensorflow as tf
+from datetime import datetime
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
@@ -48,6 +49,12 @@ PeMS = data_gen(data_file, (n_train, n_val, n_test), n, n_his + n_pred)
 print(f'>> Loading dataset with Mean: {PeMS.mean:.2f}, STD: {PeMS.std:.2f}')
 
 if __name__ == '__main__':
+    before_train = datetime.now().timestamp()
     model_train(PeMS, blocks, args, tensorboard_summary_dir=pjoin(output_dir, 'tensorboard'),
                 model_dir=pjoin(output_dir, 'model'))
+    after_train = datetime.now().timestamp()
     model_test(PeMS, PeMS.get_len('test'), n_his, n_pred, args.inf_mode, load_path=pjoin(output_dir, 'model'))
+    after_evaluation = datetime.now().timestamp()
+    print('Duration Overview:')
+    print(f'Training took {(after_train - before_train)/60} minutes')
+    print(f'Evaluation took {(after_evaluation - after_train)/60} minutes')
