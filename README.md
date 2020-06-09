@@ -9,7 +9,7 @@ Multivariate Time-series Forecasting.
 
 To install requirements:
 
-Venv is recommended. Verified for `pip==20.2b1` and `setuptools==47.1.1`.
+Venv is recommended. Verified for `python3.7`, `pip==20.2b1` and `setuptools==47.1.1`.
 
 ```setup
 python -m venv venv
@@ -41,7 +41,7 @@ python main.py --dataset <path to dataset> --output_dir <path to output director
 [Electricity](https://archive.ics.uci.edu/ml/datasets/ElectricityLoadDiagrams20112014),
 [ECG](http://www.timeseriesclassification.com/description.php?Dataset=ECG5000)
 
-Since complex reorganizations need to be conducted on the above datasets provided in the urls before fed into StemGNN model, we provide an organized version of PEMS07 ([./dataset/PeMS07.csv](./dataset/PeMS07.csv)) for reproduction convenience. The PeMS07.csv is in shape of `T*N`, where `T` denotes total number of timestamps, `N` denotes number of nodes. Run command `python main.py` to trigger training and evaluation on PeMS07.csv.
+Since complex data cleansing is needed on the above datasets provided in the urls before fed into the StemGNN model, we provide a cleaned version of PEMS07 ([./dataset/PeMS07.csv](./dataset/PeMS07.csv)) for reproduction convenience. The PeMS07.csv is in shape of `T*N`, where `T` denotes total number of timestamps, `N` denotes number of nodes. Run command `python main.py` to trigger training and evaluation on PeMS07.csv.
 
 ## Results
 
