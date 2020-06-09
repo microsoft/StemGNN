@@ -1,4 +1,5 @@
 import os
+import random
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 from os.path import join as pjoin
@@ -48,7 +49,12 @@ n_train, n_val, n_test = 34, 5, 5
 PeMS = data_gen(data_file, (n_train, n_val, n_test), n, n_his + n_pred)
 print(f'>> Loading dataset with Mean: {PeMS.mean:.2f}, STD: {PeMS.std:.2f}')
 
+SEED = 0
 if __name__ == '__main__':
+    tf.compat.v1.set_random_seed(SEED)
+    random.seed(SEED)
+    np.random.seed(SEED)
+
     before_train = datetime.now().timestamp()
     model_train(PeMS, blocks, args, tensorboard_summary_dir=pjoin(output_dir, 'tensorboard'),
                 model_dir=pjoin(output_dir, 'model'))
