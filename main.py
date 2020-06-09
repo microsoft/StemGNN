@@ -51,6 +51,8 @@ print(f'>> Loading dataset with Mean: {PeMS.mean:.2f}, STD: {PeMS.std:.2f}')
 
 SEED = 0
 if __name__ == '__main__':
+    os.environ['PYTHONHASHSEED'] = str(SEED)
+    # os.environ['TF_CUDNN_DETERMINISTIC'] = str(SEED) # new flag in tf 2.0+
     tf.compat.v1.set_random_seed(SEED)
     random.seed(SEED)
     np.random.seed(SEED)
