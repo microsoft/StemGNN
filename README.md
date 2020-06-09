@@ -7,7 +7,7 @@ Multivariate Time-series Forecasting.
 
 ## Requirements
 
-Recommended system requirements: Ubuntu 18.04.2 LTS & python3.7.
+Recommended system settings: Ubuntu 18.04.2 LTS & python3.7.
 
 To install requirements:
 
