@@ -9,11 +9,13 @@ Multivariate Time-series Forecasting.
 
 To install requirements:
 
+Venv is recommended. Verified for `pip==20.2b1` and `setuptools==47.1.1`.
+
 ```setup
+python -m venv venv
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
-
-Venv is recommended. Verified for pip==20.2b1 and setuptools==47.1.1.
 
 <!-- > 📋Describe how to set up the environment, e.g. pip/conda/docker commands, download datasets, etc... -->
 
