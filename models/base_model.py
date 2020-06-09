@@ -25,13 +25,8 @@ def attention_conv_layer(x):
 
     _, time_step_temp, route_temp, channel_temp = x_input.get_shape().as_list()
 
-<<<<<<< HEAD
-
     x_input = tf.transpose(x, [0, 2, 3, 1])
-    x_input = tf.reshape(x_input, [-1,  route_temp * channel_temp,time_step_temp])
-=======
     x_input = tf.reshape(x_input, [-1, route_temp * channel_temp, time_step_temp])
->>>>>>> 41352df00b8215866ea5b432cb8b889954ffbaae
     # _, time_step_temp, route_temp, channel_temp = x_input.get_shape().as_list()
     cell = tf.keras.layers.GRUCell(route_temp)  # ,return_sequences=True)
     # x_input = tf.reshape(x_input, [-1, time_step_temp * route_temp, s])
