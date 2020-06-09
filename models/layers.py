@@ -467,6 +467,7 @@ def stemGNN_block(x, Ks, Kt, channels, scope, keep_prob, e, v, l1, flag=0, act_f
 
         # g_conv
         _, _, _, c_fft = x.get_shape().as_list()
+
         x = spatio_conv_layer_fft_0221(x, Ks, c_fft, c_fft, e)
 
         # x = spatio_conv_layer_fft_0222(x, Ks, c_fft, c_fft,e)
@@ -485,15 +486,14 @@ def stemGNN_block(x, Ks, Kt, channels, scope, keep_prob, e, v, l1, flag=0, act_f
         x = back_cast
         x = tf.nn.relu(x[:, :, :, 0:c_fft] + x_input, 'relu_test')
 
-
         # x= attention_conv_layer(x)
         if flag==0:
             #back_forecast=x_input
             x = tf.nn.relu(x[:, :, :, 0:c_fft] + x_input, 'relu_test')
-            l1 = tf.nn.l2_loss(x_input - x[:, :, :, 0:c_fft])
+            l1 = tf.nn.l2_loss(x_input - back_cast)#x[:, :, :, 0:c_fft])
         else:
             #back_forecast=fore_auto(back_forecast, Kt, c_in, c_t)
-            x = tf.nn.relu(x[:, :, :, 0:c_fft] + x_input+back_forecast, 'relu_test')
+            x = tf.nn.relu(x[:, :, :, 0:c_fft] +back_forecast+x_input, 'relu_test')
             #l1 = l1 + tf.nn.l2_loss(back_forecast - x[:, :, :, 0:c_fft])
 
 

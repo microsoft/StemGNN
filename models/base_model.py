@@ -25,7 +25,13 @@ def attention_conv_layer(x):
 
     _, time_step_temp, route_temp, channel_temp = x_input.get_shape().as_list()
 
+<<<<<<< HEAD
+
+    x_input = tf.transpose(x, [0, 2, 3, 1])
+    x_input = tf.reshape(x_input, [-1,  route_temp * channel_temp,time_step_temp])
+=======
     x_input = tf.reshape(x_input, [-1, route_temp * channel_temp, time_step_temp])
+>>>>>>> 41352df00b8215866ea5b432cb8b889954ffbaae
     # _, time_step_temp, route_temp, channel_temp = x_input.get_shape().as_list()
     cell = tf.keras.layers.GRUCell(route_temp)  # ,return_sequences=True)
     # x_input = tf.reshape(x_input, [-1, time_step_temp * route_temp, s])
@@ -96,7 +102,11 @@ def build_model(inputs, n_his, Ks, Kt, blocks, keep_prob):
 
     tf.add_to_collection(name='copy_loss',
                          value=tf.nn.l2_loss(inputs[:, n_his - 1:n_his, :, :] - inputs[:, n_his:n_his + 1, :, :]))
+<<<<<<< HEAD
+    train_loss = tf.nn.l2_loss(y - inputs[:, n_his:n_his + 1, :, :])#+l1
+=======
     train_loss = tf.nn.l2_loss(y - inputs[:, n_his:n_his + 1, :, :]) + l1
+>>>>>>> 41352df00b8215866ea5b432cb8b889954ffbaae
     single_pred = y[:, 0, :, :]
     tf.add_to_collection(name='y_pred', value=single_pred)
     return train_loss, single_pred, e
