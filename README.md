@@ -3,8 +3,6 @@
 This repository is the official implementation of Spectral Temporal Graph Neural Network for
 Multivariate Time-series Forecasting.
 
-<!-- > 📋Optional: include a graphic explaining your approach/main result, bibtex entry, link to demos, blog posts and tutorials -->
-
 ## Requirements
 
 Recommended version of OS & Python:
@@ -21,8 +19,6 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-<!-- > 📋Describe how to set up the environment, e.g. pip/conda/docker commands, download datasets, etc... -->
-
 ## Training and Evaluation
 
 The training procedure and evaluation procedure are all included in the `main.py`. To train and evaluate on some dataset, run the following command:
@@ -30,8 +26,6 @@ The training procedure and evaluation procedure are all included in the `main.py
 ```train & evaluate
 python main.py --dataset <path to dataset> --output_dir <path to output directory>
 ```
-
-<!-- The hyperparameters are set as default pramaters for reproduction convenience, so no more parameters need to be specified in the above command. -->
 
 ## Datasets
 
@@ -67,5 +61,3 @@ Our model achieves the following performance on the 9 datasets included in the c
 | PEMS03 | 14.32 | 21.64 | 16.24 |
 | PEMS04 | 20.24 | 32.15 | 10.03 |
 | PEMS08 | 15.83 | 24.93 | 9.26 |
-
-<!-- > 📋Include a table of results from your paper, and link back to the leaderboard for clarity and context. If your main result is a figure, include that figure and link to the command or notebook to reproduce it.  -->
