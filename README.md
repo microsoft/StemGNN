@@ -7,12 +7,15 @@ Multivariate Time-series Forecasting.
 
 ## Requirements
 
+Recommended system requirements: Ubuntu 18.04.2 LTS & python3.7.
+
 To install requirements:
 
-Venv is recommended. Verified for `python3.7`, `pip==20.2b1` and `setuptools==47.1.1`.
+Venv is recommended. Verified for `pip==20.2b1` and `setuptools==47.1.1`.
 
 ```setup
 python -m venv venv
+source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
