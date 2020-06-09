@@ -1,8 +1,5 @@
-
-
 import tensorflow as tf
 from keras_self_attention import SeqSelfAttention, SeqWeightedAttention
-
 
 
 def gconv_fft_cnn_0221(x, theta, Ks, c_in, c_out, e):
@@ -46,11 +43,6 @@ def gconv_fft_cnn_0221(x, theta, Ks, c_in, c_out, e):
     return x_gconv
 
 
-
-
-
-
-
 def graph_fft(x, v, flag=True):
     '''
 
@@ -86,9 +78,6 @@ def layer_norm(x, scope):
         beta = tf.get_variable('beta', initializer=tf.zeros([1, 1, N, C]))
         _x = (x - mu) / tf.sqrt(sigma + 1e-6) * gamma + beta
     return _x
-
-
-
 
 
 def temporal_conv_layer(x, Kt, c_in, c_out, act_func='relu'):
@@ -215,7 +204,7 @@ def temporal_conv_layer_imag(x, Kt, c_in, c_out, act_func='relu'):
             raise ValueError(f'ERROR: activation function "{act_func}" is not defined.')
 
 
-def temporal_conv_layer_input(x, Kt, c_in, c_out, act_func='relu',type='x'):
+def temporal_conv_layer_input(x, Kt, c_in, c_out, act_func='relu', type='x'):
     '''
     Temporal convolution layer.
     :param x: tensor, [batch_size, time_step, n_route, c_in].
@@ -232,7 +221,7 @@ def temporal_conv_layer_input(x, Kt, c_in, c_out, act_func='relu',type='x'):
     # x_input = tf.nn.conv2d(x, w_input, strides=[1, 1, 1, 1], padding='SAME')
 
     if c_in > c_out:
-        w_input = tf.get_variable('wt_input3'+type, shape=[1, 1, c_in, c_out], dtype=tf.float32)
+        w_input = tf.get_variable('wt_input3' + type, shape=[1, 1, c_in, c_out], dtype=tf.float32)
         tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(w_input))
         x_input = tf.nn.conv2d(x, w_input, strides=[1, 1, 1, 1], padding='SAME')
     elif c_in < c_out:
@@ -269,9 +258,9 @@ def temporal_conv_layer_input(x, Kt, c_in, c_out, act_func='relu',type='x'):
         outputs = tf.reshape(outputs, [-1, time_step_temp, route_temp, channel_temp])
         return outputs
     else:
-        wt = tf.get_variable(name='wt_input2'+type, shape=[Kt, 1, c_in, c_out], dtype=tf.float32)
+        wt = tf.get_variable(name='wt_input2' + type, shape=[Kt, 1, c_in, c_out], dtype=tf.float32)
         tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(wt))
-        bt = tf.get_variable(name='bt_input2'+type, initializer=tf.zeros([c_out]), dtype=tf.float32)
+        bt = tf.get_variable(name='bt_input2' + type, initializer=tf.zeros([c_out]), dtype=tf.float32)
         x_conv = tf.nn.conv2d(x, wt, strides=[1, 1, 1, 1], padding='VALID') + bt
         if act_func == 'linear':
             return x_conv
@@ -283,7 +272,7 @@ def temporal_conv_layer_input(x, Kt, c_in, c_out, act_func='relu',type='x'):
             raise ValueError(f'ERROR: activation function "{act_func}" is not defined.')
 
 
-def fc(x,type='fore'):
+def fc(x, type='fore'):
     '''
 
     :param x: tensor, [batch_size, time_step, n_route, c_in].
@@ -293,24 +282,20 @@ def fc(x,type='fore'):
     :param act_func: str, activation function.
     :return: tensor, [batch_size, time_step-Kt+1, n_route, c_out].
     '''
-    #_, T, n, _ = x.get_shape().as_list()
+    # _, T, n, _ = x.get_shape().as_list()
     # keep the original input for residual connection.
     _, time_step_temp, route_temp, channel_temp = x.get_shape().as_list()
-    #x_input = x_input[:, Kt - 1:T, :, :]
-    x_tmp = tf.reshape(x,[-1, channel_temp])
-    #x_tmp = tf.reshape(tf.transpose(x, [0, 2, 3, 1]), [-1, time_step_temp])
-    #[time_step_temp,T-Kt+1]
-    wt = tf.get_variable(name='wt_'+type, shape=[channel_temp,channel_temp], dtype=tf.float32)
+    # x_input = x_input[:, Kt - 1:T, :, :]
+    x_tmp = tf.reshape(x, [-1, channel_temp])
+    # x_tmp = tf.reshape(tf.transpose(x, [0, 2, 3, 1]), [-1, time_step_temp])
+    # [time_step_temp,T-Kt+1]
+    wt = tf.get_variable(name='wt_' + type, shape=[channel_temp, channel_temp], dtype=tf.float32)
     tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(wt))
-    bt = tf.get_variable(name='bt_'+type, initializer=tf.zeros([channel_temp]), dtype=tf.float32)
+    bt = tf.get_variable(name='bt_' + type, initializer=tf.zeros([channel_temp]), dtype=tf.float32)
     hidden = tf.sigmoid(tf.add(tf.matmul(x_tmp, wt), bt))
     out = tf.nn.softmax(hidden)
     outputs = tf.reshape(out, [-1, time_step_temp, route_temp, channel_temp])
     return outputs
-
-
-
-
 
 
 def fore_auto(x, Kt, c_in, c_out):
@@ -346,25 +331,23 @@ def fore_auto(x, Kt, c_in, c_out):
     x_input = x_input[:, Kt - 1:T, :, :]
 
     x_tmp = tf.reshape(tf.transpose(x, [0, 2, 3, 1]), [-1, time_step_temp])
-    #[time_step_temp,T-Kt+1]
-    wt = tf.get_variable(name='wt_en', shape=[time_step_temp,T-Kt+1], dtype=tf.float32)
+    # [time_step_temp,T-Kt+1]
+    wt = tf.get_variable(name='wt_en', shape=[time_step_temp, T - Kt + 1], dtype=tf.float32)
     tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(wt))
-    bt = tf.get_variable(name='bt_en', initializer=tf.zeros([T-Kt+1]), dtype=tf.float32)
+    bt = tf.get_variable(name='bt_en', initializer=tf.zeros([T - Kt + 1]), dtype=tf.float32)
     hidden = tf.sigmoid(tf.add(tf.matmul(x_tmp, wt), bt))
-    hidden = tf.reshape(hidden,[-1,channel_temp])
-    #x_tmp = tf.reshape(tf.transpose(x, [0, 2, 3, 1]), [-1, time_step_temp])
+    hidden = tf.reshape(hidden, [-1, channel_temp])
+    # x_tmp = tf.reshape(tf.transpose(x, [0, 2, 3, 1]), [-1, time_step_temp])
     # [time_step_temp,T-Kt+1]
     wt_de = tf.get_variable(name='wt_de', shape=[channel_temp, c_out], dtype=tf.float32)
     tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(wt_de))
     bt_de = tf.get_variable(name='bt_de', initializer=tf.zeros([c_out]), dtype=tf.float32)
     out = tf.nn.softmax(tf.add(tf.matmul(hidden, wt_de), bt_de))
-    outputs = tf.reshape(out, [-1, T-Kt+1, route_temp, c_out])
+    outputs = tf.reshape(out, [-1, T - Kt + 1, route_temp, c_out])
 
-    #x_conv = tf.nn.conv2d(x, wt, strides=[1, 1, 1, 1], padding='VALID') + bt
+    # x_conv = tf.nn.conv2d(x, wt, strides=[1, 1, 1, 1], padding='VALID') + bt
 
     return outputs
-
-
 
 
 def spatio_conv_layer_fft_0221(x, Ks, c_in, c_out, e):
@@ -377,7 +360,6 @@ def spatio_conv_layer_fft_0221(x, Ks, c_in, c_out, e):
     :return: tensor, [batch_size, time_step, n_route, c_out].
     '''
     _, T, n, _ = x.get_shape().as_list()
-
 
     Ks = 1
 
@@ -418,14 +400,7 @@ def spatio_conv_layer_fft_0221(x, Ks, c_in, c_out, e):
     return x_gc  # tf.nn.relu(x_gc[:, :, :, 0:c_out]+ x_input )
 
 
-
-
-
-
-
-
-
-def stemGNN_block(x, Ks, Kt, channels, scope, keep_prob, e, v, l1, flag=0, act_func='GLU',back_forecast=None):
+def stemGNN_block(x, Ks, Kt, channels, scope, keep_prob, e, v, l1, flag=0, act_func='GLU', back_forecast=None):
     '''
     GFFT-fft-GRU-ifft-attention-gconv-iGfft-GLU
 
@@ -445,12 +420,12 @@ def stemGNN_block(x, Ks, Kt, channels, scope, keep_prob, e, v, l1, flag=0, act_f
     with tf.variable_scope(f'stn_block_{scope}_in'):
 
         x_input = temporal_conv_layer_input(x, Kt, c_si, c_t, 'relu')
-        #flag = False
-        if flag ==0:
-            #flag = True
-            back_forecast=x_input
+        # flag = False
+        if flag == 0:
+            # flag = True
+            back_forecast = x_input
         else:
-            back_forecast=fore_auto(back_forecast, Kt, c_in, c_t)
+            back_forecast = fore_auto(back_forecast, Kt, c_in, c_t)
 
         GF = graph_fft(x, v, True)
         x = GF
@@ -467,6 +442,7 @@ def stemGNN_block(x, Ks, Kt, channels, scope, keep_prob, e, v, l1, flag=0, act_f
 
         # g_conv
         _, _, _, c_fft = x.get_shape().as_list()
+
         x = spatio_conv_layer_fft_0221(x, Ks, c_fft, c_fft, e)
 
         # x = spatio_conv_layer_fft_0222(x, Ks, c_fft, c_fft,e)
@@ -480,32 +456,28 @@ def stemGNN_block(x, Ks, Kt, channels, scope, keep_prob, e, v, l1, flag=0, act_f
         # else:
         #     back_forecast = fore_auto(back_forecast, Kt, c_in, c_t)
 
-
-        back_cast = fc(x,'back')
+        back_cast = fc(x, 'back')
         x = back_cast
         x = tf.nn.relu(x[:, :, :, 0:c_fft] + x_input, 'relu_test')
 
-
         # x= attention_conv_layer(x)
-        if flag==0:
-            #back_forecast=x_input
+        if flag == 0:
+            # back_forecast=x_input
             x = tf.nn.relu(x[:, :, :, 0:c_fft] + x_input, 'relu_test')
-            l1 = tf.nn.l2_loss(x_input - x[:, :, :, 0:c_fft])
+            l1 = tf.nn.l2_loss(x_input - back_cast)  # x[:, :, :, 0:c_fft])
         else:
-            #back_forecast=fore_auto(back_forecast, Kt, c_in, c_t)
-            x = tf.nn.relu(x[:, :, :, 0:c_fft] + x_input+back_forecast, 'relu_test')
-            #l1 = l1 + tf.nn.l2_loss(back_forecast - x[:, :, :, 0:c_fft])
+            # back_forecast=fore_auto(back_forecast, Kt, c_in, c_t)
+            x = tf.nn.relu(x[:, :, :, 0:c_fft] + back_forecast + x_input, 'relu_test')
+            # l1 = l1 + tf.nn.l2_loss(back_forecast - x[:, :, :, 0:c_fft])
 
-
-        x_t = x # tf.add(x_t1, 0.5 * x_t2)
+        x_t = x  # tf.add(x_t1, 0.5 * x_t2)
 
     with tf.variable_scope(f'stn_block_{scope}_out'):
         x_o = temporal_conv_layer(x_t, Kt, c_t, c_oo)
-        back_cast_o = temporal_conv_layer_imag(back_forecast,Kt,c_t,c_oo)
+        back_cast_o = temporal_conv_layer_imag(back_forecast, Kt, c_t, c_oo)
     x_ln = layer_norm(x_o, f'layer_norm_{scope}')
     fore_cast_ln = layer_norm(back_cast_o, f'layer_norm_{scope}_back')
-    return tf.nn.dropout(x_ln, keep_prob),tf.nn.dropout(fore_cast_ln, keep_prob),l1
-
+    return tf.nn.dropout(x_ln, keep_prob), tf.nn.dropout(fore_cast_ln, keep_prob), l1
 
 
 def fully_con_layer(x, n, channel, scope):

@@ -62,7 +62,7 @@ def data_gen(file_path, data_config, n_route, n_frame=21, day_slot=288):
     # generate training, validation and test data
     try:
         data_seq = pd.read_csv(file_path, header=None).values
-        data_seq=data_seq[~(data_seq==0).all(axis=1), :]
+        data_seq = data_seq[~(data_seq == 0).all(axis=1), :]
     except FileNotFoundError:
         print(f'ERROR: input file was not found in {file_path}.')
 
