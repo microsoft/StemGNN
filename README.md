@@ -28,16 +28,15 @@ pip install -r requirements.txt
 [PEMS04](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=4&submit=Submit),
 [PEMS07](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=7&submit=Submit),
 [PEMS08](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=8&submit=Submit),
-[METR-LA](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit),
-[PEMS-BAY](http://pems.dot.ca.gov/?dnode=Clearinghouse&type=station_5min&district_id=3&submit=Submit),
+[METR-LA](https://github.com/liyaguang/DCRNN),
+[PEMS-BAY](https://github.com/liyaguang/DCRNN),
 [Solar](https://www.nrel.gov/grid/solar-power-data.html),
 [Electricity](https://archive.ics.uci.edu/ml/datasets/ElectricityLoadDiagrams20112014),
 [ECG](http://www.timeseriesclassification.com/description.php?Dataset=ECG5000)
 
 
 
-We can get the raw data through the link above. We evaluate the performance of traffic flow forecasting on PEMS03, PEMS07, PEMS08 and traffic speed forecasting on PEMS04, PEMS-BAY and METR-LA. So we use the traffic flow table of PEMS03, PEMS07, PEMS08 and the traffic speed table of PEMS04, PEMS-BAY and METR-LA as our datasets. During data processing, for the missing values ​​(0 values) in the data, we use the average value of the its time series (mean of the column) instead, which can avoid 0 values ​​when calculating MAPE. 
-We name each file after the datasets. The *.csv is in shape of `N*T`, where `N` denotes total number of timestamps, `T` denotes number of nodes.
+We can get the raw data through the link above. We evaluate the performance of traffic flow forecasting on PEMS03, PEMS07, PEMS08 and traffic speed forecasting on PEMS04, PEMS-BAY and METR-LA. So we use the traffic flow table of PEMS03, PEMS07, PEMS08 and the traffic speed table of PEMS04, PEMS-BAY and METR-LA as our datasets. We download the solar power data of Alabama (Eastern States) and merge the *5_Min.csv (totally 137 time series) as our Solar dataset. We delete the header and index of Electricity file downloaded from the link above as our Electricity dataset. During data processing, for the missing values ​​(0 values) in the data, we use the average value of the its time series (mean of the column) instead, which can avoid 0 values ​​when calculating MAPE. We name each file after the datasets. The *.csv is in shape of `N*T`, where `N` denotes total number of timestamps, `T` denotes number of nodes.
 
 We provide a cleaned version of ECG ([./dataset/ECG_data.csv](./dataset/ECG_data.csv)) for reproduction convenience. The ECG_data.csv is in shape of `140*5000`, where `140` denotes total number of timestamps, `5000` denotes number of nodes. Run command `python main.py` to trigger training and evaluation on ECG_data.csv.
 
