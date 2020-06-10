@@ -32,7 +32,7 @@ parser.add_argument('--opt', type=str, default='RMSProp')
 parser.add_argument('--graph', type=str, default='default')
 parser.add_argument('--inf_mode', type=str, default='merge')
 parser.add_argument('--dataset', type=str, default='./dataset/ECG_data.csv')
-parser.add_argument('--model_dir', type=str, default='./output/ECG_data')
+parser.add_argument('--output_dir', type=str, default='./output/ECG_data')
 parser.add_argument('--train', type=str, default='True')
 parser.add_argument('--evaluate', type=str, default='True')
 
@@ -43,7 +43,7 @@ n, n_his, n_pred = args.n_route, args.n_his, args.n_pred
 Ks, Kt = args.ks, args.kt
 # blocks: settings of channel size in Spe-Seq Cell
 blocks = [[1, 32, 64], [64, 32, 128]]
-output_dir = args.model_dir
+output_dir = args.output_dir
 
 # Data Preprocessing
 data_file = args.dataset

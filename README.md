@@ -34,72 +34,50 @@ pip install -r requirements.txt
 [Electricity](https://archive.ics.uci.edu/ml/datasets/ElectricityLoadDiagrams20112014),
 [ECG](http://www.timeseriesclassification.com/description.php?Dataset=ECG5000)
 
-Since complex data cleansing is needed on the above datasets provided in the urls before fed into the StemGNN model, we provide a cleaned version of ECG ([./dataset/ECG_data.csv](./dataset/ECG_data.csv)) for reproduction convenience. The ECG_data.csv is in shape of `T*N`, where `T` denotes total number of timestamps, `N` denotes number of nodes. Run command `python main.py` to trigger training and evaluation on ECG_data.csv.
+
+
+We can get the raw data through the link above. We evaluate the performance of traffic flow forecasting on PEMS03, PEMS07, PEMS08 and traffic speed forecasting on PEMS04, PEMS-BAY and METR-LA. So we use the traffic flow table of PEMS03, PEMS07, PEMS08 and the traffic speed table of PEMS04, PEMS-BAY and METR-LA as our datasets. During data processing, for the missing values ​​(0 values) in the data, we use the average value of the its time series (mean of the column) instead, which can avoid 0 values ​​when calculating MAPE. 
+We name each file after the datasets. The *.csv is in shape of `N*T`, where `N` denotes total number of timestamps, `T` denotes number of nodes.
+
+We provide a cleaned version of ECG ([./dataset/ECG_data.csv](./dataset/ECG_data.csv)) for reproduction convenience. The ECG_data.csv is in shape of `140*5000`, where `140` denotes total number of timestamps, `5000` denotes number of nodes. Run command `python main.py` to trigger training and evaluation on ECG_data.csv.
 
 ## Training and Evaluation
 
 The training procedure and evaluation procedure are all included in the `main.py`. To train and evaluate on some dataset, run the following command:
 
-For PEMS03 dataset:
-
-```train & evaluate PEMS03
-python main.py --train True --evaluate True --dataset ./dataset/PEMS03.csv --output_dir ./output/PEMS03 --n_route 358 --n_his 12 --n_pred 12
-```
-
-For PEMS04 dataset:
-
-```train & evaluate PEMS04
-python main.py --train True --evaluate True --dataset ./dataset/PEMS04.csv --output_dir ./output/PEMS04 --n_route 307 --n_his 12 --n_pred 12
-```
-
-For PEMS08 dataset:
-
-```train & evaluate PEMS08
-python main.py --train True --evaluate True --dataset ./dataset/PEMS08.csv --output_dir ./output/PEMS08 --n_route 170 --n_his 12 --n_pred 12
-```
-
-For PEMS04 dataset:
-
-```train & evaluate PEMS04
-python main.py --train True --evaluate True --dataset ./dataset/PEMS04.csv --output_dir ./output/PEMS04 --n_route 228 --n_his 12 --n_pred 3
-```
-
-For METR-LA dataset:
-
-```train & evaluate METR-LA
-python main.py --train True --evaluate True --dataset ./dataset/METR-LA.csv --output_dir ./output/METR-LA --n_route 207 --n_his 12 --n_pred 3
-```
-
-For PEMS-BAY dataset:
-
-```train & evaluate METR-LA
-python main.py --train True --evaluate True --dataset ./dataset/PEMS-BAY.csv --output_dir ./output/PEMS-BAY --n_route 325 --n_his 12 --n_pred 3
-```
-
-For Solar dataset:
-
-```train & evaluate Solar
-python main.py --train True --evaluate True --dataset ./dataset/Solar.csv --output_dir ./output/Solar --n_route 137 --n_his 12 --n_pred 3
-```
-
-For Electricity dataset:
-
-```train & evaluate Electricity
-python main.py --train True --evaluate True --dataset ./dataset/Electricity.csv --output_dir ./output/Electricity --n_route 321 --n_his 12 --n_pred 3
-```
-
 For ECG dataset:
 
 ```train & evaluate ECG
-python main.py 
+python main.py --train True --evaluate True --dataset ./dataset/ECG_data.csv --output_dir ./output/ECG_data --n_route 140 --n_his 12 --n_pred 3
 ```
+
+We set the flag 'train' to 'True' so that we can train our model and set the flag 'evaluate' to 'True' so that we can evaluate our model after we save the model to the flag 'output_dir'. StemGNN reads data from 'dataset'. Besides, the flag 'n_route' means the number of time series, the 'n_his' is our sliding window and the 'n_pred' is the horizon.
+
+
+### Complete settings for all datasets
+
+**Table 1** (Settings for datasets)
+| Dataset | train  | evaluate | dataset | output_dir | n_route | n_his | n_pred|
+| -----   | ---- | ---- | ---- |---- |---- |---- |---- |
+| PEMS03 | True | True | ./dataset/PEMS03 | ./output/PEMS03 | 358 | 12 | 12 | 
+| PEMS04 | True | True | ./dataset/PEMS04 | ./output/PEMS04 | 307 | 12 | 12 | 
+| PEMS08 | True | True | ./dataset/PEMS08 | ./output/PEMS08 | 170 | 12 | 12 |
+| METR-LA | True | True | ./dataset/METR-LA | ./output/METR-LA | 207 | 12 | 3 |
+| PEMS-BAY | True | True | ./dataset/PEMS-BAY | ./output/PEMS-BAY | 325 | 12 | 3 |
+| PEMS07 | True | True | ./dataset/PEMS07 | ./output/PEMS07 | 228 | 12 | 3 |
+| Solar | True | True | ./dataset/Solar | ./output/Solar | 137 | 12 | 3 |
+| Electricity | True | True | ./dataset/Electricity | ./output/Electricity | 321 | 12 | 3 |
+
+
+
+
 
 
 ## Results
 
 Our model achieves the following performance on the 9 datasets included in the code repo:
 
-**Table 1** (predict horizon: 3 steps)
+**Table 2** (predict horizon: 3 steps)
 | Dataset | MAE  | RMSE | MAPE(%) |
 | -----   | ---- | ---- | ---- |
 | METR-LA | 2.56 | 5.06 | 6.46 |
@@ -109,7 +87,7 @@ Our model achieves the following performance on the 9 datasets included in the c
 | Electricity | 0.04 | 0.06 | 14.77 |
 | ECG | 0.05 | 0.07 | 10.58 |
 
-**Table 2** (predict horizon: 12 steps)
+**Table 3** (predict horizon: 12 steps)
 | Dataset | MAE  | RMSE | MAPE |
 | -----   | ---- | ---- | ---- |
 | PEMS03 | 14.32 | 21.64 | 16.24 |
