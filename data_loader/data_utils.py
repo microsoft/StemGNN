@@ -108,8 +108,7 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
     try:
 
         data_seq = pd.read_csv(file_path)
-        data_seq.drop(['label'], axis=1, inplace=True)  # zhuxia
-        data_seq.drop(['set'], axis=1, inplace=True)
+
         # data_seq = pd.read_csv(file_path, header=None)  # .values
         # for column in list(data_seq.columns):
         #         #print(column)
