@@ -148,11 +148,6 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
     # seq_val = seq_gen(n_val, data_seq, n_train, n_frame, n_route, day_slot)
     # seq_test = seq_gen(n_test, data_seq, n_train + n_val, n_frame, n_route, day_slot)
 
-    if scalar == 'z_score':
-        x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}
-    elif scalar == 'min_max':
-        x_stats = {'mean': 0, 'std': 1}
-
     # x_stats: dict, the stats for the train dataset, including the value of mean and standard deviation.
 
     # x_train, x_val, x_test: np.array, [sample_size, n_frame, n_route, channel_size].
