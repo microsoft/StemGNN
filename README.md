@@ -77,7 +77,7 @@ The detailed descriptions about the parameters are as following:
 
 ## Results
 
-Our model achieves the following performance on the 9 datasets included in the code repo:
+Our model achieves the following performance on the 10 datasets:
 
 **Table 2** (predict horizon: 3 steps)
 | Dataset | MAE  | RMSE | MAPE(%) |
