@@ -22,9 +22,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--n_route', type=int, default=140)
 parser.add_argument('--n_his', type=int, default=12)
 parser.add_argument('--n_pred', type=int, default=3)
+parser.add_argument('--train_length', type=float, default=6)
+parser.add_argument('--validate_length', type=float, default=2)
+parser.add_argument('--test_length', type=float, default=2)
 parser.add_argument('--batch_size', type=int, default=50)
 parser.add_argument('--epoch', type=int, default=50)
-parser.add_argument('--save', type=int, default=10)
+parser.add_argument('--save', type=int, default=5)
 parser.add_argument('--ks', type=int, default=3)
 parser.add_argument('--kt', type=int, default=3)
 parser.add_argument('--lr', type=float, default=1e-3)
@@ -33,6 +36,7 @@ parser.add_argument('--graph', type=str, default='default')
 parser.add_argument('--inf_mode', type=str, default='merge')
 parser.add_argument('--dataset', type=str, default='./dataset/ECG_data.csv')
 parser.add_argument('--output_dir', type=str, default='./output/ECG_data')
+parser.add_argument('--scalar', type=str, default='min_max')
 parser.add_argument('--train', type=bool, default=True)
 parser.add_argument('--evaluate', type=bool, default=True)
 
@@ -47,8 +51,12 @@ output_dir = args.output_dir
 
 # Data Preprocessing
 data_file = args.dataset
-
-DATA = data_gen(data_file, n, n_his + n_pred)
+train_val_test_ratio = [
+    args.train_length / (args.train_length + args.validate_length + args.test_length),
+    args.validate_length / (args.train_length + args.validate_length + args.test_length),
+    args.test_length / (args.train_length + args.validate_length + args.test_length)
+]
+DATA = data_gen(data_file, n, train_val_test_ratio, args.scalar, n_his + n_pred)
 print(f'>> Loading dataset ')
 
 SEED = 1
@@ -56,17 +64,18 @@ if __name__ == '__main__':
     tf.compat.v1.set_random_seed(SEED)
     random.seed(SEED)
     np.random.seed(SEED)
-    if args.train :
+    if args.train:
         before_train = datetime.now().timestamp()
         model_train(DATA, blocks, args, tensorboard_summary_dir=pjoin(output_dir, 'tensorboard'),
                     model_dir=pjoin(output_dir, 'model'))
         after_train = datetime.now().timestamp()
-    if args.evaluate :
+    if args.evaluate:
         before_evaluation = datetime.now().timestamp()
-        model_test(DATA, DATA.get_len('test'), n_his, n_pred, args.inf_mode, load_path=pjoin(output_dir, 'model'))
+        model_test(DATA, DATA.get_len('test'), n_his, n_pred, args.inf_mode,
+                   load_path=pjoin(output_dir, 'model', 'best'))
         after_evaluation = datetime.now().timestamp()
     print('Duration Overview:')
-    if args.train :
+    if args.train:
         print(f'Training took {(after_train - before_train)/60} minutes')
-    if args.evaluate :
+    if args.evaluate:
         print(f'Evaluation took {(after_evaluation - before_evaluation)/60} minutes')

@@ -38,9 +38,11 @@ pip install -r requirements.txt
 
 
 
-We can get the raw data through the link above. We evaluate the performance of traffic flow forecasting on PEMS03, PEMS07, PEMS08 and traffic speed forecasting on PEMS04, PEMS-BAY and METR-LA. So we use the traffic flow table of PEMS03, PEMS07, PEMS08 and the traffic speed table of PEMS04, PEMS-BAY and METR-LA as our datasets. We download the solar power data of Alabama (Eastern States) and merge the *5_Min.csv (totally 137 time series) as our Solar dataset. We delete the header and index of Electricity file downloaded from the link above as our Electricity dataset. For COVID-19 dataset, the raw data is at the floder `csse_covid_19_data/csse_covid_19_time_series/` of the above github link. We use `time_series_covid19_confirmed_global.csv` to calculate the daily of newly confirmed people number from 1/22/2020 to 5/10/2020. The 25 countries we used are 'US','Canada','Mexico','Russia','UK','Italy','Germany','France','Belarus ','Brazil','Peru','Ecuador','Chile','India','Turkey','Saudi Arabia','Pakistan','Iran','Singapore','Qatar','Bangladesh','Arab','China','Japan','Korea'. During data processing, we use mean value to replace 0 values in sort of dataset (e.g. PEMS08, Electricity) to avoid overflow in calculating MAPE. We name each file after the datasets. The *.csv is in shape of `N*T`, where `N` denotes number of nodes, `T` denotes total number of timestamps.
+We can get the raw data through the link above. We evaluate the performance of traffic flow forecasting on PEMS03, PEMS07, PEMS08 and traffic speed forecasting on PEMS04, PEMS-BAY and METR-LA. So we use the traffic flow table of PEMS03, PEMS07, PEMS08 and the traffic speed table of PEMS04, PEMS-BAY and METR-LA as our datasets. We download the solar power data of Alabama (Eastern States) and merge the *5_Min.csv (totally 137 time series) as our Solar dataset. We delete the header and index of Electricity file downloaded from the link above as our Electricity dataset. For COVID-19 dataset, the raw data is at the floder `csse_covid_19_data/csse_covid_19_time_series/` of the above github link. We use `time_series_covid19_confirmed_global.csv` to calculate the daily of newly confirmed people number from 1/22/2020 to 5/10/2020. The 25 countries we used are 'US','Canada','Mexico','Russia','UK','Italy','Germany','France','Belarus ','Brazil','Peru','Ecuador','Chile','India','Turkey','Saudi Arabia','Pakistan','Iran','Singapore','Qatar','Bangladesh','Arab','China','Japan','Korea'. We name each file after the datasets.
 
-We provide a cleaned version of ECG5000 ([./dataset/ECG_data.csv](./dataset/ECG_data.csv)) for reproduction convenience. The ECG_data.csv is in shape of `140*5000`, where `140` denotes total number of nodes, `5000` denotes number of timestamps. Run command `python main.py` to trigger training and evaluation on ECG_data.csv.
+The shape of input is `T*N`, where `N` denotes number of nodes, `T` denotes total number of timestamps.
+
+We provide a cleaned version of ECG5000 ([./dataset/ECG_data.csv](./dataset/ECG_data.csv)) for reproduction convenience. The ECG_data.csv is in shape of `5000*140`, where `5000` denotes number of timestamps and `140` denotes total number of nodes. Run command `python main.py` to trigger training and evaluation on ECG_data.csv.
 
 ## Training and Evaluation
 
@@ -58,18 +60,18 @@ We set the flag 'train' to 'True' so that we can train our model and set the fla
 ### Complete settings for all datasets
 
 **Table 1** (Settings for datasets)
-| Dataset | train  | evaluate  | n_route | n_his | n_pred|
-| -----   | ---- | ---- |---- |---- |---- |
-| PEMS03 | True | True |  358 | 12 | 12 | 
-| PEMS04 | True | True |  307 | 12 | 12 | 
-| PEMS08 | True | True |  170 | 12 | 12 |
-| METR-LA | True | True | 207 | 12 | 3 |
-| PEMS-BAY | True | True |  325 | 12 | 3 |
-| PEMS07 | True | True | 228 | 12 | 3 |
-| Solar | True | True |  137 | 12 | 3 |
-| Electricity | True | True | 321 | 12 | 3 |
-| ECG5000| True | True | 140 | 12 | 3 |
-| COVID-19| True | True | 25 | 28 | 28 |
+| Dataset | train | evaluate | n_route | n_his | n_pred | scalar |
+| -----   | ---- | ---- |---- |---- |---- | --- |
+| PEMS03 | True | True |  358 | 12 | 12 | z_score |
+| PEMS04 | True | True |  307 | 12 | 12 | z_score |
+| PEMS08 | True | True |  170 | 12 | 12 | z_score |
+| METR-LA | True | True | 207 | 12 | 3 | z_score |
+| PEMS-BAY | True | True |  325 | 12 | 3 | z_score |
+| PEMS07 | True | True | 228 | 12 | 3 | z_score |
+| Solar | True | True |  137 | 12 | 3 | z_score |
+| Electricity | True | True | 321 | 12 | 3 | z_score |
+| ECG5000| True | True | 140 | 12 | 3 | min_max |
+| COVID-19| True | True | 25 | 28 | 28 | z_score |
 
 
 In this code repo, we have processed ECG5000 as the sample dataset, the input is stored  at `./dataset/ECG_data.csv` and the output of StemGNN will be stored at `./output/ECG_data`.
