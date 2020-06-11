@@ -33,6 +33,7 @@ parser.add_argument('--graph', type=str, default='default')
 parser.add_argument('--inf_mode', type=str, default='merge')
 parser.add_argument('--dataset', type=str, default='./dataset/ECG_data.csv')
 parser.add_argument('--output_dir', type=str, default='./output/ECG_data')
+parser.add_argument('--scalar', type=str, default='min_max')
 parser.add_argument('--train', type=bool, default=True)
 parser.add_argument('--evaluate', type=bool, default=True)
 
@@ -48,7 +49,7 @@ output_dir = args.output_dir
 # Data Preprocessing
 data_file = args.dataset
 
-DATA = data_gen(data_file, n, n_his + n_pred)
+DATA = data_gen(data_file, n, args.scalar, n_his + n_pred)
 print(f'>> Loading dataset ')
 
 SEED = 1
