@@ -72,7 +72,7 @@ We set the flag 'train' to 'True' so that we can train our model and set the fla
 | COVID-19| True | True | 25 | 28 | 28 |
 
 
-In this code repo, we have processed ECG500 as the sample dataset, the input is stored  at `./dataset/ECG_data.csv` and the output of StemGNN will be stored at `./output/ECG_data`.
+In this code repo, we have processed ECG5000 as the sample dataset, the input is stored  at `./dataset/ECG_data.csv` and the output of StemGNN will be stored at `./output/ECG_data`.
 
 
 
