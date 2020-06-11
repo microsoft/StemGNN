@@ -121,9 +121,7 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
             my_matrix = np.array(data_seq)
             scaler = MinMaxScaler()
             scaler.fit(my_matrix)
-            scaler.data_max_
             data_seq = scaler.transform(my_matrix)
-
         #        data_seq=data_seq[~(data_seq==0).all(axis=1), :]
         print(data_seq.shape)
     except FileNotFoundError:
@@ -133,6 +131,16 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
     train_len = int(n_train * length)
     val_len = int(n_val * length)
     test_len = int(n_test * length)
+
+    seq_train = data_seq[:train_len]
+
+    if scalar == 'z_score':
+        x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}
+    else:
+        x_stats = {'mean': 0, 'std': 1}
+
+    data_seq = z_score(data_seq, x_stats['mean'], x_stats['std'])
+
     seq_train = seq_gen(train_len, data_seq, 0, n_frame, n_route, day_slot)
     seq_val = seq_gen(val_len, data_seq, train_len, n_frame, n_route, day_slot)
     seq_test = seq_gen(test_len, data_seq, train_len + val_len, n_frame, n_route, day_slot)
@@ -149,11 +157,12 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
     # x_stats: dict, the stats for the train dataset, including the value of mean and standard deviation.
 
     # x_train, x_val, x_test: np.array, [sample_size, n_frame, n_route, channel_size].
-    x_train = z_score(seq_train, x_stats['mean'], x_stats['std'])
-    x_val = z_score(seq_val, x_stats['mean'], x_stats['std'])
-    x_test = z_score(seq_test, x_stats['mean'], x_stats['std'])
-
-    x_data = {'train': x_train, 'val': x_val, 'test': x_test}
+    # x_train = z_score(seq_train, x_stats['mean'], x_stats['std'])
+    # x_val = z_score(seq_val, x_stats['mean'], x_stats['std'])
+    # x_test = z_score(seq_test, x_stats['mean'], x_stats['std'])
+    #
+    # x_data = {'train': x_train, 'val': x_val, 'test': x_test}
+    x_data = {'train': seq_train, 'val': seq_val, 'test': seq_test}
     dataset = Dataset(x_data, x_stats)
     return dataset
 
