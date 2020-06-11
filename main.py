@@ -34,7 +34,7 @@ parser.add_argument('--inf_mode', type=str, default='merge')
 parser.add_argument('--dataset', type=str, default='./dataset/ECG_data.csv')
 parser.add_argument('--output_dir', type=str, default='./output/ECG_data')
 parser.add_argument('--train', type=bool, default=True)
-parser.add_argument('--evaluate', type=bool, default=False)
+parser.add_argument('--evaluate', type=bool, default=True)
 
 args = parser.parse_args()
 print(f'Training configs: {args}')
