@@ -1,9 +1,3 @@
-# @Time     : Jan. 10, 2019 15:26
-# @Author   : Veritas YIN
-# @FileName : data_utils.py
-# @Version  : 1.0
-# @IDE      : PyCharm
-# @Github   : https://github.com/VeritasYin/Project_Orion
 
 from utils.math_utils import z_score
 
