@@ -9,6 +9,7 @@ import time
 import logging
 import pandas as pd
 import os
+import sys
 
 tf.disable_eager_execution()
 
@@ -102,6 +103,8 @@ def model_train(inputs, blocks, args, tensorboard_summary_dir, model_dir):
         else:
             raise ValueError(f'ERROR: test mode "{inf_mode}" is not defined.')
 
+        minimum_mape = sys.float_info.max
+
         for i in range(epoch):
             start_time = time.time()
             for j, x_batch in enumerate(
@@ -121,7 +124,6 @@ def model_train(inputs, blocks, args, tensorboard_summary_dir, model_dir):
             if not os.path.exists(model_dir):
                 os.makedirs(model_dir)
             if (i + 1) % args.save == 0:
-                model_save(sess, global_steps, 'StemGNN', model_dir)
                 start_time = time.time()
                 min_va_val, min_val = \
                     model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min_va_val, min_val)
@@ -133,6 +135,15 @@ def model_train(inputs, blocks, args, tensorboard_summary_dir, model_dir):
                           f'MAE  {va[1]:4.3f}, {te[1]:4.3f}; '
                           f'RMSE {va[2]:6.3f}, {te[2]:6.3f}.')
                 print(f'Epoch {i:2d} Inference Time {time.time() - start_time:.3f}s')
+
+                model_save(sess, global_steps, 'StemGNN', model_dir)
+
+                if va[0] < minimum_mape:
+                    minimum_mape = va[0]
+                    best_model_dir_name = pjoin(model_dir, 'best')
+                    if not os.path.exists(best_model_dir_name):
+                        os.makedirs(best_model_dir_name)
+                    model_save(sess, global_steps, 'StemGNN', best_model_dir_name)
 
         writer.close()
     print('Training model finished!')
