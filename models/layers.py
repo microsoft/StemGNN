@@ -56,10 +56,10 @@ def graph_fft(x, v, flag=True):
         U = tf.transpose(v)  # tf.get_collection('graph_U_T')[0]  # (228*228 n*n)
     else:
         U = v  # tf.get_collection('graph_U')[0]
-    x_tmp = tf.reshape(tf.transpose(x, [2, 0, 1, 3]), [n, -1])
-    x = tf.matmul(U, x_tmp)  # .reshape()
+    #x_tmp = tf.reshape(tf.transpose(x, [2, 0, 1, 3]), [n, -1])
+    x = tf.matmul(U, x)  # .reshape()
     # x = tf.multiply( U, x_tmp)
-    x = tf.reshape(x, [-1, T, n, c_in])
+    #x = tf.reshape(x, [-1, T, n, c_in])
     return x
 
 
