@@ -133,12 +133,33 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
 
     seq_train = data_seq[:train_len]
 
-    if scalar == 'z_score':
-        x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}  # TODO: fix the zscore
-    else:
-        x_stats = {'mean': 0, 'std': 1}
+    x_stats = []
+    data_seq2 = seq_train
 
-    data_seq = z_score(data_seq, x_stats['mean'], x_stats['std'])
+    if scalar == 'z_score':
+        
+        #x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}
+        
+        for column in list(data_seq2.columns):
+            #print(column)
+            stats = {}
+            data = np.array(data_seq2[column])
+            stats = {'mean': np.mean(data), 'std': np.std(data)}
+            x_stats.append(stats)
+        #x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}  # TODO: fix the zscore
+    else:
+
+        for column in list(data_seq2.columns):
+            #print(column)
+            stats = {}
+            data = np.array(data_seq2[column])
+            stats = {'mean': 0, 'std': 1}
+            x_stats.append(stats)
+        
+    
+
+
+    data_seq = z_score(data_seq, x_stats)
 
     seq_train = seq_gen(train_len, data_seq, 0, n_frame, n_route, day_slot)
     seq_val = seq_gen(val_len, data_seq, train_len, n_frame, n_route, day_slot)
