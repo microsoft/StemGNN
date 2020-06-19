@@ -116,7 +116,7 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
         #     data_seq[column].replace(0, mean_val, inplace=True)
         data_seq = data_seq.values
 
-        if scalar == 'min_max':
+        if scalar == 'min_max':  # TODO: unify the covering range with zscore
             my_matrix = np.array(data_seq)
             scaler = MinMaxScaler()
             scaler.fit(my_matrix)
@@ -134,7 +134,7 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
     seq_train = data_seq[:train_len]
 
     if scalar == 'z_score':
-        x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}
+        x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}  # TODO: fix the zscore
     else:
         x_stats = {'mean': 0, 'std': 1}
 

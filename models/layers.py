@@ -430,7 +430,7 @@ def stemGNN_block(x, Ks, Kt, channels, scope, keep_prob, e, v, l1, flag=0, act_f
         GF = graph_fft(x, v, True)
         x = GF
 
-        x = tf.to_float(tf.spectral.fft(tf.cast(x, dtype=tf.complex64)))
+        x = tf.spectral.fft(tf.cast(x, dtype=tf.complex64))
         x = tf.real(x)
         x_imag = tf.imag(x)
         # c_in = c_t
