@@ -1,11 +1,22 @@
+
+
 import numpy as np
 import math
-
-import pandas as pd
 from scipy.stats import pearsonr
 
+# #def z_score(x, mean, std):
+#     '''
+#     Z-score normalization function: $z = (X - \mu) / \sigma $,
+#     where z is the z-score, X is the value of the element,
+#     $\mu$ is the population mean, and $\sigma$ is the standard deviation.
+#     :param x: np.ndarray, input array to be normalized.
+#     :param mean: float, the value of mean.
+#     :param std: float, the value of standard deviation.
+#     :return: np.ndarray, z-score normalized array.
+#     '''
+# #    return (x - mean) / std
 
-def z_score(x, mean, std):
+def z_score(x, x_stats):
     '''
     Z-score normalization function: $z = (X - \mu) / \sigma $,
     where z is the z-score, X is the value of the element,
@@ -14,16 +25,16 @@ def z_score(x, mean, std):
     :param mean: float, the value of mean.
     :param std: float, the value of standard deviation.
     :return: np.ndarray, z-score normalized array.
+
     '''
-    x = (x - mean) / std
-    x[np.where(x == 0)] = np.nan
-    x = pd.DataFrame(x)
-    x = x.fillna(method='ffill', limit=len(x)).fillna(method='bfill', limit=len(x))
-    x = np.asarray(x.values)
+
+    for i in range(0,len(x[0])):
+        x[:,i]=(x[:,i]-x_stats[i]['mean'])/x_stats[i]['std']
     return x
 
 
-def z_inverse(x, mean, std):
+
+def z_inverse(x, x_stats):
     '''
     The inverse of function z_score().
     :param x: np.ndarray, input to be recovered.
@@ -31,7 +42,21 @@ def z_inverse(x, mean, std):
     :param std: float, the value of standard deviation.
     :return: np.ndarray, z-score inverse array.
     '''
-    return x * std + mean
+    for i in range(0,len(x[0])):
+        x[:,i]=(x[:,i]*x_stats[i]['std'])+ x_stats[i]['mean']
+    return x
+
+# def z_inverse(x, mean, std):
+#     '''
+#     The inverse of function z_score().
+#     :param x: np.ndarray, input to be recovered.
+#     :param mean: float, the value of mean.
+#     :param std: float, the value of standard deviation.
+#     :return: np.ndarray, z-score inverse array.
+#     '''
+#     for i in range(0,len(x[0])):
+#         x[:,i]=(x[:,i]*x_stats[i]['std'])+ x_stats[i]['mean']
+#     return x * std + mean
 
 
 def MAPE(v, v_):
@@ -41,7 +66,7 @@ def MAPE(v, v_):
     :param v_: np.ndarray or int, prediction.
     :return: int, MAPE averages on all elements of input.
     '''
-    return np.mean(np.abs((v_ - v) / v))
+    return np.abs(np.mean(np.abs(v_ - v) / (v + 1e-5)))
 
 
 def RMSE(v, v_):
@@ -63,10 +88,8 @@ def MAE(v, v_):
     '''
     return np.mean(np.abs(v_ - v))
 
-
 def rrse_(y_true, y_pred):
     return np.sqrt(np.sum((y_true - y_pred) ** 2) / np.sum((y_true - np.mean(y_true)) ** 2))
-
 
 def CORR(y_true, y_pred):
     y_true = np.array(y_true, 'float32')
@@ -95,14 +118,16 @@ def evaluation(y, y_, x_stats):
     '''
     dim = len(y_.shape)
 
-    # print(y)
-    # print(y_)
+    #print(y)
+    #print(y_)
+
     if dim == 3:
         # single_step case
-        v = z_inverse(y, x_stats['mean'], x_stats['std'])
-        v_ = z_inverse(y_, x_stats['mean'], x_stats['std'])
+
+        v = z_inverse(np.squeeze(y), x_stats)
+        v_ = z_inverse(np.squeeze(y_), x_stats)
         return np.array([MAPE(v, v_), MAE(v, v_), RMSE(v, v_)])
-        # return np.array([rrse_(v, v_), MAE(v, v_), CORR(v, v_)])
+        #return np.array([rrse_(v, v_), MAE(v, v_), CORR(v, v_)])
     else:
         # multi_step case
         tmp_list = []
