@@ -28,10 +28,11 @@ def attention_conv_layer(x):
     x_input = tf.transpose(x, [0, 2, 3, 1])
     x_input = tf.reshape(x_input, [-1, route_temp * channel_temp, time_step_temp])
     # _, time_step_temp, route_temp, channel_temp = x_input.get_shape().as_list()
-    cell = tf.keras.layers.GRUCell(route_temp)  # ,return_sequences=True)
-    # x_input = tf.reshape(x_input, [-1, time_step_temp * route_temp, s])
-    outputs, mid_state = tf.compat.v1.nn.dynamic_rnn(cell, x_input, dtype=tf.float32)
-    x, _ = SeqSelfAttention(32, return_attention=True)(outputs)
+    with tf.device('/cpu:0'):
+        cell = tf.keras.layers.GRUCell(route_temp)  # ,return_sequences=True)
+        # x_input = tf.reshape(x_input, [-1, time_step_temp * route_temp, s])
+        outputs, mid_state = tf.compat.v1.nn.dynamic_rnn(cell, x_input, dtype=tf.float32)
+        x, _ = SeqSelfAttention(32, return_attention=True)(outputs)
 
     # x=tf.contrib.layers.l1_regularizer(0.5)(x)
     weight = tf.reshape(x, [-1, n, n])
