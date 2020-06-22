@@ -111,17 +111,17 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
         data_seq = pd.read_csv(file_path, header=None)
 
         # data_seq = pd.read_csv(file_path, header=None)  # .values
-        for column in list(data_seq.columns):
-        #         #print(column)
-             mean_val = data_seq[column].mean()
-             data_seq[column].replace(0, mean_val, inplace=True)
+        # for column in list(data_seq.columns):
+        # #         #print(column)
+        #      mean_val = data_seq[column].mean()
+        #      data_seq[column].replace(0, mean_val, inplace=True)
         #data_seq = data_seq#.values
 
-        if scalar == 'min_max':  # TODO: unify the covering range with zscore
-            my_matrix = np.array(data_seq)
-            scaler = MinMaxScaler()
-            scaler.fit(my_matrix)
-            data_seq = scaler.transform(my_matrix)
+        # if scalar == 'min_max':  # TODO: unify the covering range with zscore
+        #     my_matrix = np.array(data_seq)
+        #     scaler = MinMaxScaler()
+        #     scaler.fit(my_matrix)
+        #     data_seq = scaler.transform(my_matrix)
         #        data_seq=data_seq[~(data_seq==0).all(axis=1), :]
         print(data_seq.shape)
     except FileNotFoundError:
@@ -134,6 +134,13 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
 
     seq_train = data_seq[:train_len]
 
+    if scalar == 'min_max':  # TODO: unify the covering range with zscore
+            my_matrix = np.array(seq_train)
+            all_matrix = np.array(data_seq)
+            scaler = MinMaxScaler()
+            scaler.fit(my_matrix)
+            data_seq = scaler.transform(all_matrix)
+
     x_stats = []
     data_seq2 = pd.DataFrame(seq_train)
 
@@ -145,7 +152,7 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
             #print(column)
             stats = {}
             data = np.array(data_seq2[column])
-            stats = {'mean': np.mean(data), 'std': np.std(data)}
+            stats = {'mean': np.mean(data,axis=1), 'std': np.std(data,axis=1)}
             x_stats.append(stats)
         #x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}  # TODO: fix the zscore
     else:
