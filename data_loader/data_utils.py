@@ -135,11 +135,11 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
     seq_train = data_seq[:train_len]
 
     if scalar == 'min_max':  # TODO: unify the covering range with zscore
-            my_matrix = np.array(seq_train)
-            all_matrix = np.array(data_seq)
-            scaler = MinMaxScaler()
-            scaler.fit(my_matrix)
-            seq_train = scaler.transform(my_matrix)
+        my_matrix = np.array(seq_train)
+        all_matrix = np.array(data_seq)
+        scaler = MinMaxScaler()
+        scaler.fit(my_matrix)
+        seq_train = scaler.transform(my_matrix)
 
     x_stats = []
     data_seq2 = pd.DataFrame(seq_train)
