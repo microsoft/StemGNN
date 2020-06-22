@@ -217,5 +217,3 @@ def gen_batch(inputs, batch_size, dynamic_batch=False, shuffle=False):
             slide = slice(start_idx, end_idx)
 
         yield inputs[slide]
-
-        
