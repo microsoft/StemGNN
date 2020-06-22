@@ -160,7 +160,7 @@ def model_test(inputs, batch_size, n_his, n_pred, inf_mode, load_path):
         y_test = y_test.transpose((2, 0, 1, 3))
         s1,s2,s3,s4 = y_test.shape
         y_test = y_test.reshape(s1,-1)
-        y_test = y_test(y_pred,x_stats)
+        y_test = z_inverse(y_pred,x_stats)
         y_test = y_test.reshape(s1,s2,s3,s4)
         y_test = y_test.transpose((1, 2, 0, 3))
         evl = evaluation(x_test[0:len_test, step_idx + n_his, :, :], y_test, x_stats)
