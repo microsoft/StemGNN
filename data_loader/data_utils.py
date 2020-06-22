@@ -167,7 +167,7 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
     #data_seq = data_seq.values
 
 
-    seq_train = z_score(seq_train.values, x_stats)
+    seq_train = z_score(data_seq.values, x_stats)
 
     seq_train = seq_gen(train_len, seq_train, 0, n_frame, n_route, day_slot)
     seq_val = seq_gen(val_len, data_seq, train_len, n_frame, n_route, day_slot)
