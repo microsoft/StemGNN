@@ -78,7 +78,7 @@ def MAPE(v, v_):
     :param v_: np.ndarray or int, prediction.
     :return: int, MAPE averages on all elements of input.
     '''
-    return np.abs(np.mean(np.abs(v_ - v) / v)
+    return np.abs(np.mean(np.abs(v_ - v) / v))
 
 
 def RMSE(v, v_):
