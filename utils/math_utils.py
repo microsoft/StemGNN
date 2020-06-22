@@ -49,12 +49,11 @@ def z_inverse(x, x_stats):
     :param std: float, the value of standard deviation.
     :return: np.ndarray, z-score inverse array.
     '''
-    if len(x.shape)>=2:
-        for i in range(0,len(x[0])):
-            x[:,i]=(x[:,i]*x_stats[i]['std'])+ x_stats[i]['mean']
-    else:
-        for i in range(0,len(x[0])):
-            x[i]=(x[i]*x_stats[i]['std'])+ x_stats[i]['mean']
+    
+    for i in range(0,len(x[0])):
+        x[i,:]=(x[i,:]*x_stats[i]['std'])+ x_stats[i]['mean']
+    
+    
 
     return x
 
@@ -137,7 +136,7 @@ def evaluation(y, y_, x_stats):
         # single_step case
 
         v = y#z_inverse(np.squeeze(y), x_stats)
-        v_ = z_inverse(y_, x_stats)
+        v_ = y_#z_inverse(y_, x_stats)
         return np.array([MAPE(v, v_), MAE(v, v_), RMSE(v, v_)])
         #return np.array([rrse_(v, v_), MAE(v, v_), CORR(v, v_)])
     else:
