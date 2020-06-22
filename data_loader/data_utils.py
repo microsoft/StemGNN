@@ -11,20 +11,21 @@ from sklearn.preprocessing import MinMaxScaler
 class Dataset(object):
     def __init__(self, data, stats):
         self.__data = data
-        self.mean = stats['mean']
-        self.std = stats['std']
+        self.stats = stats
+        # self.mean = stats['mean']
+        # self.std = stats['std']
 
     def get_data(self, type):
         return self.__data[type]
 
     def get_stats(self):
-        return {'mean': self.mean, 'std': self.std}
+        return self.stats  #{'mean': self.mean, 'std': self.std}
 
     def get_len(self, type):
         return len(self.__data[type])
 
-    def z_inverse(self, type):
-        return self.__data[type] * self.std + self.mean
+    # def z_inverse(self, type):
+    #     return self.__data[type] * self.std + self.mean
 
 
 def seq_gen(len_seq, data_seq, offset, n_frame, n_route, day_slot, C_0=1):
@@ -110,11 +111,11 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
         data_seq = pd.read_csv(file_path, header=None)
 
         # data_seq = pd.read_csv(file_path, header=None)  # .values
-        # for column in list(data_seq.columns):
+        for column in list(data_seq.columns):
         #         #print(column)
-        #     mean_val = data_seq[column].mean()
-        #     data_seq[column].replace(0, mean_val, inplace=True)
-        data_seq = data_seq.values
+             mean_val = data_seq[column].mean()
+             data_seq[column].replace(0, mean_val, inplace=True)
+        #data_seq = data_seq#.values
 
         if scalar == 'min_max':  # TODO: unify the covering range with zscore
             my_matrix = np.array(data_seq)
@@ -134,7 +135,7 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
     seq_train = data_seq[:train_len]
 
     x_stats = []
-    data_seq2 = seq_train
+    data_seq2 = pd.DataFrame(seq_train)
 
     if scalar == 'z_score':
         
@@ -156,10 +157,10 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
             stats = {'mean': 0, 'std': 1}
             x_stats.append(stats)
         
-    
+    #data_seq = data_seq.values
 
 
-    data_seq = z_score(data_seq, x_stats)
+    data_seq = z_score(data_seq.values, x_stats)
 
     seq_train = seq_gen(train_len, data_seq, 0, n_frame, n_route, day_slot)
     seq_val = seq_gen(val_len, data_seq, train_len, n_frame, n_route, day_slot)
