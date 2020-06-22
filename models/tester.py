@@ -116,16 +116,21 @@ def model_test(inputs, batch_size, n_his, n_pred, inf_mode, load_path):
     start_time = time.time()
     model_path = tf.train.get_checkpoint_state(load_path).model_checkpoint_path
 
+    #with  tf.device('/cpu:0'):
     test_graph = tf.Graph()
 
     with test_graph.as_default():
-        saver = tf.train.import_meta_graph(pjoin(f'{model_path}.meta'))
+            
+        with  tf.device('/cpu:0'):
+            saver = tf.train.import_meta_graph(pjoin(f'{model_path}.meta'))
 
     with tf.Session(graph=test_graph) as test_sess:
-        saver.restore(test_sess, tf.train.latest_checkpoint(load_path))
-        print(f'>> Loading saved model from {model_path} ...')
-
-        pred = test_graph.get_collection('y_pred')
+            
+        with  tf.device('/cpu:0'):
+            saver.restore(test_sess, tf.train.latest_checkpoint(load_path))
+            print(f'>> Loading saved model from {model_path} ...')
+        #with  tf.device('/cpu:0'):
+            pred = test_graph.get_collection('y_pred')
 
         if inf_mode == 'sep':
             # for inference mode 'sep', the type of step index is int.
