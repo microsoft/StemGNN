@@ -1,5 +1,5 @@
 from data_loader.data_utils import gen_batch
-from utils.math_utils import evaluation
+from utils.math_utils import evaluation,z_inverse
 from os.path import join as pjoin
 
 import tensorflow as tf
@@ -90,6 +90,12 @@ def model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min
         raise ValueError(f'ERROR: the value of n_pred "{n_pred}" exceeds the length limit.')
 
     y_val, len_val, x_temp = multi_pred(sess, pred, x_val, batch_size, n_his, n_pred, step_idx)
+    y_val = y_val.transpose((2, 0, 1, 3))
+    s1,s2,s3,s4 = y_val.shape
+    y_val = y_val.reshape(s1,-1)
+    y_val = z_inverse(y_val,x_stats)
+    y_val = y_val.reshape(s1,s2,s3,s4)
+    y_val = y_val.transpose((1, 2, 0, 3))
     evl_val = evaluation(x_val[0:len_val, step_idx + n_his, :, :], y_val, x_stats)
 
     # chks: indicator that reflects the relationship of values between evl_val and min_va_val.
@@ -98,6 +104,12 @@ def model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min
     if sum(chks):
         min_va_val[chks] = evl_val[chks]
         y_pred, len_pred, x_temp = multi_pred(sess, pred, x_test, batch_size, n_his, n_pred, step_idx)
+        y_pred = y_pred.transpose((2, 0, 1, 3))
+        s1,s2,s3,s4 = y_pred.shape
+        y_pred = y_pred.reshape(s1,-1)
+        y_pred = z_inverse(y_pred,x_stats)
+        y_pred = y_pred.reshape(s1,s2,s3,s4)
+        y_pred = y_pred.transpose((1, 2, 0, 3))
         evl_pred = evaluation(x_test[0:len_pred, step_idx + n_his, :, :], y_pred, x_stats)
         min_val = evl_pred
     return min_va_val, min_val
@@ -145,6 +157,12 @@ def model_test(inputs, batch_size, n_his, n_pred, inf_mode, load_path):
         x_test, x_stats = inputs.get_data('test'), inputs.get_stats()
 
         y_test, len_test, y_all_data = multi_pred(test_sess, pred, x_test, batch_size, n_his, n_pred, step_idx)
+        y_test = y_test.transpose((2, 0, 1, 3))
+        s1,s2,s3,s4 = y_test.shape
+        y_test = y_test.reshape(s1,-1)
+        y_test = y_test(y_pred,x_stats)
+        y_test = y_test.reshape(s1,s2,s3,s4)
+        y_test = y_test.transpose((1, 2, 0, 3))
         evl = evaluation(x_test[0:len_test, step_idx + n_his, :, :], y_test, x_stats)
         # for i in range(0,len(x_test)):
         #     y_pre = y_all_data[:,i,:,:]
