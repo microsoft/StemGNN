@@ -139,7 +139,7 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
             all_matrix = np.array(data_seq)
             scaler = MinMaxScaler()
             scaler.fit(my_matrix)
-            data_seq = scaler.transform(all_matrix)
+            seq_train = scaler.transform(my_matrix)
 
     x_stats = []
     data_seq2 = pd.DataFrame(seq_train)
@@ -152,7 +152,7 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
             #print(column)
             stats = {}
             data = np.array(data_seq2[column])
-            stats = {'mean': np.mean(data,axis=1), 'std': np.std(data,axis=1)}
+            stats = {'mean': np.mean(data), 'std': np.std(data)}
             x_stats.append(stats)
         #x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}  # TODO: fix the zscore
     else:
@@ -167,9 +167,9 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
     #data_seq = data_seq.values
 
 
-    data_seq = z_score(data_seq.values, x_stats)
+    seq_train = z_score(seq_train.values, x_stats)
 
-    seq_train = seq_gen(train_len, data_seq, 0, n_frame, n_route, day_slot)
+    seq_train = seq_gen(train_len, seq_train, 0, n_frame, n_route, day_slot)
     seq_val = seq_gen(val_len, data_seq, train_len, n_frame, n_route, day_slot)
     seq_test = seq_gen(test_len, data_seq, train_len + val_len, n_frame, n_route, day_slot)
 
