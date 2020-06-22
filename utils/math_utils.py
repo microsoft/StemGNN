@@ -3,6 +3,7 @@
 import numpy as np
 import math
 from scipy.stats import pearsonr
+import pandas as pd
 
 # #def z_score(x, mean, std):
 #     '''
@@ -30,6 +31,12 @@ def z_score(x, x_stats):
 
     for i in range(0,len(x[0])):
         x[:,i]=(x[:,i]-x_stats[i]['mean'])/x_stats[i]['std']
+    
+    x[np.where(x == 0)] = np.nan
+    x = pd.DataFrame(x)
+    x = x.fillna(method='ffill', limit=len(x)).fillna(method='bfill', limit=len(x))
+    x = np.asarray(x.values)
+    
     return x
 
 
@@ -66,7 +73,7 @@ def MAPE(v, v_):
     :param v_: np.ndarray or int, prediction.
     :return: int, MAPE averages on all elements of input.
     '''
-    return np.abs(np.mean(np.abs(v_ - v) / (v + 1e-5)))
+    return np.abs(np.mean(np.abs(v_ - v) / v)
 
 
 def RMSE(v, v_):
