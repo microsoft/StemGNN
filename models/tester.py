@@ -6,36 +6,37 @@ import tensorflow as tf
 import numpy as np
 import time
 import pandas as pd
+from utils.math_utils import z_score,z_inverse
 
 tf.disable_eager_execution()
 
 
-def z_score(x, mean, std):
-    '''
-    Z-score normalization function: $z = (X - \mu) / \sigma $,
-    where z is the z-score, X is the value of the element,
-    $\mu$ is the population mean, and $\sigma$ is the standard deviation.
-    :param x: np.ndarray, input array to be normalized.
-    :param mean: float, the value of mean.
-    :param std: float, the value of standard deviation.
-    :return: np.ndarray, z-score normalized array.
-    '''
-    # return x
-    return (x - mean) / std
+# def z_score(x, mean, std):
+#     '''
+#     Z-score normalization function: $z = (X - \mu) / \sigma $,
+#     where z is the z-score, X is the value of the element,
+#     $\mu$ is the population mean, and $\sigma$ is the standard deviation.
+#     :param x: np.ndarray, input array to be normalized.
+#     :param mean: float, the value of mean.
+#     :param std: float, the value of standard deviation.
+#     :return: np.ndarray, z-score normalized array.
+#     '''
+#     # return x
+#     return (x - mean) / std
 
 
-def z_inverse(x, mean, std):
-    '''
-    The inverse of function z_score().
-    :param x: np.ndarray, input to be recovered.
-    :param mean: float, the value of mean.
-    :param std: float, the value of standard deviation.
-    :return: np.ndarray, z-score inverse array.
-    '''
+# def z_inverse(x, mean, std):
+#     '''
+#     The inverse of function z_score().
+#     :param x: np.ndarray, input to be recovered.
+#     :param mean: float, the value of mean.
+#     :param std: float, the value of standard deviation.
+#     :return: np.ndarray, z-score inverse array.
+#     '''
 
-    # return x
+#     # return x
 
-    return x * std + mean
+#     return x * std + mean
 
 
 def multi_pred(sess, y_pred, seq, batch_size, n_his, n_pred, step_idx, dynamic_batch=True):
@@ -160,6 +161,7 @@ def model_test(inputs, batch_size, n_his, n_pred, inf_mode, load_path):
         y_test = y_test.transpose((2, 0, 1, 3))
         s1,s2,s3,s4 = y_test.shape
         y_test = y_test.reshape(s1,-1)
+        #y_pred = z_inverse(y_pred,x_stats)
         y_test = z_inverse(y_test,x_stats)
         y_test = y_test.reshape(s1,s2,s3,s4)
         y_test = y_test.transpose((1, 2, 0, 3))
