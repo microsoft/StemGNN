@@ -50,7 +50,7 @@ def z_inverse(x, x_stats):
     :return: np.ndarray, z-score inverse array.
     '''
     
-    for i in range(0,len(x[0])):
+    for i in range(0,len(x)):
         x[i,:]=(x[i,:]*x_stats[i]['std'])+ x_stats[i]['mean']
     
     
