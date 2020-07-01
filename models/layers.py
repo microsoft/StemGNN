@@ -430,15 +430,22 @@ def stemGNN_block(x, Ks, Kt, channels, scope, keep_prob, e, v, l1, flag=0, act_f
         GF = graph_fft(x, v, True)
         x = GF
 
+        x = tf.reshape(tf.transpose(x, [0, 2, 3, 1]), [-1, T])
         x = tf.spectral.fft(tf.cast(x, dtype=tf.complex64))
         x = tf.real(x)
         x_imag = tf.imag(x)
+        
+        x =  tf.transpose(tf.reshape(x,[-1,n,c_in,T]),[0,3,1,2])
+        x_imag =  tf.transpose(tf.reshape(x_imag,[-1,n,c_in,T]),[0,3,1,2])
         # c_in = c_t
         _, time_step_temp, route_temp, channel_temp = x.get_shape().as_list()
         x = temporal_conv_layer(x, Kt, c_si, c_t, 'GLU')
         x_imag = temporal_conv_layer_imag(x_imag, Kt, c_si, c_t, 'GLU')
-        _, T, n, _ = x.get_shape().as_list()
+        _, T, n, cc = x.get_shape().as_list()
+        x = tf.reshape(tf.transpose(x, [0, 2, 3, 1]), [-1, T])
+        x_imag = tf.reshape(tf.transpose(x_imag, [0, 2, 3, 1]), [-1, T])
         x = tf.to_float(tf.spectral.ifft((tf.complex(x, x_imag))))
+        x =  tf.transpose(tf.reshape(x,[-1,n,cc,T]),[0,3,1,2])
 
         # g_conv
         _, _, _, c_fft = x.get_shape().as_list()
