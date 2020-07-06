@@ -106,7 +106,6 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
     n_train, n_val, n_test = train_val_test_ratio
     # generate training, validation and test data
     try:
-
         data_seq = pd.read_csv(file_path, header=None)
 
         # data_seq = pd.read_csv(file_path, header=None)  # .values

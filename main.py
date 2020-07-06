@@ -56,6 +56,7 @@ train_val_test_ratio = [
     args.validate_length / (args.train_length + args.validate_length + args.test_length),
     args.test_length / (args.train_length + args.validate_length + args.test_length)
 ]
+
 DATA = data_gen(data_file, n, train_val_test_ratio, args.scalar, n_his + n_pred)
 print(f'>> Loading dataset ')
 
@@ -76,6 +77,6 @@ if __name__ == '__main__':
         after_evaluation = datetime.now().timestamp()
     print('Duration Overview:')
     if args.train:
-        print(f'Training took {(after_train - before_train)/60} minutes')
+        print(f'Training took {(after_train - before_train) / 60} minutes')
     if args.evaluate:
-        print(f'Evaluation took {(after_evaluation - before_evaluation)/60} minutes')
+        print(f'Evaluation took {(after_evaluation - before_evaluation) / 60} minutes')
