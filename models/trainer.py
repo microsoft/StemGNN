@@ -98,7 +98,7 @@ def model_train(inputs, blocks, args, tensorboard_summary_dir, model_dir):
             min_val = min_va_val = np.array([4e1, 1e5, 1e5])
         elif inf_mode == 'merge':
             # for inference mode 'merge', the type of step index is np.ndarray.
-            step_idx = tmp_idx = np.arange(3, n_pred + 1, 3) - 1
+            step_idx = tmp_idx = np.arange(1, n_pred+1, 1) - 1
             min_val = min_va_val = np.array([4e1, 1e5, 1e5] * len(step_idx))
         else:
             raise ValueError(f'ERROR: test mode "{inf_mode}" is not defined.')
@@ -123,22 +123,39 @@ def model_train(inputs, blocks, args, tensorboard_summary_dir, model_dir):
             # pd.DataFrame(e_value_1).to_csv("e_value" + str(i) + ".csv")
             if not os.path.exists(model_dir):
                 os.makedirs(model_dir)
+
+
             if (i + 1) % args.save == 0:
                 start_time = time.time()
-                min_va_val, min_val = \
-                    model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min_va_val, min_val)
+                
+                evl, min_val = \
+                         model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min_va_val, min_val)
 
+                # for ix in tmp_idx:
+                #     va, te = min_va_val[ix - 2:ix + 1], min_val[ix - 2:ix + 1]
+                #     print(f'Time Step {ix + 1}: '
+                #           f'MAPE {va[0]:7.3%}, {te[0]:7.3%}; '
+                #           f'MAE  {va[1]:4.3f}, {te[1]:4.3f}; '
+                #           f'RMSE {va[2]:6.3f}, {te[2]:6.3f}.')
+                amape=[]
+                amae=[]
+                armse=[]
                 for ix in tmp_idx:
-                    va, te = min_va_val[ix - 2:ix + 1], min_val[ix - 2:ix + 1]
-                    print(f'Time Step {ix + 1}: '
-                          f'MAPE {va[0]:7.3%}, {te[0]:7.3%}; '
-                          f'MAE  {va[1]:4.3f}, {te[1]:4.3f}; '
-                          f'RMSE {va[2]:6.3f}, {te[2]:6.3f}.')
+                    te = evl[ix*3:ix*3 + 3]
+                    amape.append(te[0])
+                    amae.append(te[1])
+                    armse.append(te[2])
+                    print(f'Time Step {ix + 1}: MAPE {te[0]:7.3%}; MAE  {te[1]:4.3f}; RMSE {te[2]:6.3f}.')
+                
+                print(f'Results: MAPE {np.mean(amape):7.3%}; MAE  {np.mean(amae):4.3f}; RMSE {np.mean(armse):6.3f}.')
+
                 print(f'Epoch {i:2d} Inference Time {time.time() - start_time:.3f}s')
+
+                
 
                 model_save(sess, global_steps, 'StemGNN', model_dir)
 
-                if va[0] < minimum_mape:
+                if va[1] <= minimum_mape:
                     minimum_mape = va[0]
                     best_model_dir_name = pjoin(model_dir, 'best')
                     if not os.path.exists(best_model_dir_name):
