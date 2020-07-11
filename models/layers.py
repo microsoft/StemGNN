@@ -27,9 +27,10 @@ def gconv_fft_cnn_0221(x, theta, Ks, c_in, c_out, e):
     # x_tmp = tf.reshape(x,[-1,c_in])
     #
     x_tmp = tf.reshape(tf.transpose(x, [0, 1, 3, 2]), [-1, n])
-    real_kernel = tf.multiply(theta, kernel)
+    #real_kernel = tf.multiply(theta, kernel) +theta
+    real_kernel = tf.matmul(theta, kernel) #+theta
     x_mul = tf.matmul(x_tmp, real_kernel)
-    x_gconv = tf.reshape(x_mul, [-1, n, c_out])
+    x_gconv = tf.transpose(tf.reshape(x_mul, [-1, c_out, n_route]),[0,2,1])
     # x_mul = x_tmp * ker -> [batch_size*c_in, Ks*n_route] -> [batch_size, c_in, Ks, n_route]
     # x_mul = tf.reshape(tf.matmul(x_tmp, kernel), [-1, time_step, c_in, n_route])
     # x_mul = tf.transpose(x_mul, [0, 1, 3, 2])
@@ -293,7 +294,8 @@ def fc(x, type='fore'):
     tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(wt))
     bt = tf.get_variable(name='bt_' + type, initializer=tf.zeros([channel_temp]), dtype=tf.float32)
     hidden = tf.sigmoid(tf.add(tf.matmul(x_tmp, wt), bt))
-    out = tf.nn.softmax(hidden)
+    #out = tf.nn.softmax(hidden)
+    out = tf.nn.sigmoid(hidden)
     outputs = tf.reshape(out, [-1, time_step_temp, route_temp, channel_temp])
     return outputs
 
@@ -430,22 +432,24 @@ def stemGNN_block(x, Ks, Kt, channels, scope, keep_prob, e, v, l1, flag=0, act_f
         GF = graph_fft(x, v, True)
         x = GF
 
-        x = tf.reshape(tf.transpose(x, [0, 2, 3, 1]), [-1, T])
-        x = tf.spectral.fft(tf.cast(x, dtype=tf.complex64))
+        #x = tf.reshape(tf.transpose(x, [0, 2, 3, 1]), [-1, T])
+        #x = tf.spectral.fft(tf.cast(x, dtype=tf.complex64))
         x = tf.real(x)
         x_imag = tf.imag(x)
         
-        x =  tf.transpose(tf.reshape(x,[-1,n,c_in,T]),[0,3,1,2])
-        x_imag =  tf.transpose(tf.reshape(x_imag,[-1,n,c_in,T]),[0,3,1,2])
+        #x =  tf.transpose(tf.reshape(x,[-1,n,c_in,T]),[0,3,1,2])
+        #x_imag =  tf.transpose(tf.reshape(x_imag,[-1,n,c_in,T]),[0,3,1,2])
         # c_in = c_t
         _, time_step_temp, route_temp, channel_temp = x.get_shape().as_list()
         x = temporal_conv_layer(x, Kt, c_si, c_t, 'GLU')
         x_imag = temporal_conv_layer_imag(x_imag, Kt, c_si, c_t, 'GLU')
         _, T, n, cc = x.get_shape().as_list()
-        x = tf.reshape(tf.transpose(x, [0, 2, 3, 1]), [-1, T])
-        x_imag = tf.reshape(tf.transpose(x_imag, [0, 2, 3, 1]), [-1, T])
+        #x = tf.reshape(tf.transpose(x, [0, 2, 3, 1]), [-1, T])
+        #x_imag = tf.reshape(tf.transpose(x_imag, [0, 2, 3, 1]), [-1, T])
         x = tf.to_float(tf.spectral.ifft((tf.complex(x, x_imag))))
-        x =  tf.transpose(tf.reshape(x,[-1,n,cc,T]),[0,3,1,2])
+        #x =  tf.transpose(tf.reshape(x,[-1,n,cc,T]),[0,3,1,2])
+
+        #x = tf.reshape(x,[-1,n,c_in])
 
         # g_conv
         _, _, _, c_fft = x.get_shape().as_list()
