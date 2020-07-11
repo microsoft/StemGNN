@@ -9,9 +9,10 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 class Dataset(object):
-    def __init__(self, data, stats):
+    def __init__(self, data, stats,type_normalize):
         self.__data = data
         self.stats = stats
+        self.type_normalize = type_normalize
         # self.mean = stats['mean']
         # self.std = stats['std']
 
@@ -20,6 +21,9 @@ class Dataset(object):
 
     def get_stats(self):
         return self.stats  #{'mean': self.mean, 'std': self.std}
+
+    def get_type(self):
+        return self.type_normalize  #{'mean': self.mean, 'std': self.std}
 
     def get_len(self, type):
         return len(self.__data[type])
@@ -109,6 +113,8 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
     try:
 
         data_seq = pd.read_csv(file_path, header=None)
+        data_seq_ori = pd.read_csv(file_path, header=None)
+
 
         # data_seq = pd.read_csv(file_path, header=None)  # .values
         # for column in list(data_seq.columns):
@@ -126,13 +132,16 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
         print(data_seq.shape)
     except FileNotFoundError:
         print(f'ERROR: input file was not found in {file_path}.')
-
+    
+    n_sec_train = n_train - n_val
     length = len(data_seq) - n_frame + 1
     train_len = int(n_train * length)
+    sec_train_len = int(n_sec_train * length)
     val_len = int(n_val * length)
     test_len = int(n_test * length)
 
     seq_train = data_seq[:train_len]
+    seq_test = data_seq[train_len:]
 
     if scalar == 'min_max':  # TODO: unify the covering range with zscore
         my_matrix = np.array(seq_train)
@@ -143,6 +152,7 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
 
     x_stats = []
     data_seq2 = pd.DataFrame(seq_train)
+    seq_test = pd.DataFrame(seq_test)
 
     if scalar == 'z_score':
         
@@ -155,6 +165,18 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
             stats = {'mean': np.mean(data), 'std': np.std(data)}
             x_stats.append(stats)
         #x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}  # TODO: fix the zscore
+        z_data = z_score(data_seq_ori.values, x_stats)
+
+        x_stats = []
+        #这个地方是test集合
+        for column in list(seq_test.columns):
+            #print(column)
+            stats = {}
+            data = np.array(seq_test[column])
+            stats = {'mean': np.mean(data), 'std': np.std(data)}
+            x_stats.append(stats)
+
+        seq_test1 = z_score(data_seq.values, x_stats)
     else:
 
         for column in list(data_seq2.columns):
@@ -167,12 +189,22 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
     #data_seq = data_seq.values
 
 
-    seq_train = z_score(data_seq.values, x_stats)
+    seq_train = seq_gen(train_len, z_data, 0, n_frame, n_route, day_slot)
+    #seq_train = seq_gen(train_len, seq_train, 0, n_frame, n_route, day_slot)
+    seq_val = seq_gen(val_len, z_data, sec_train_len, n_frame, n_route, day_slot)
+    seq_test = seq_gen(test_len, seq_test1, train_len , n_frame, n_route, day_slot)
+    data_seq = pd.read_csv(file_path, header=None)
+    
+    for column in list(data_seq.columns):
+        mean_val = data_seq[column].mean()
+        data_seq[column].replace(0, mean_val, inplace=True)
 
-    seq_train = seq_gen(train_len, seq_train, 0, n_frame, n_route, day_slot)
-    seq_val = seq_gen(val_len, data_seq, train_len, n_frame, n_route, day_slot)
-    seq_test = seq_gen(test_len, data_seq, train_len + val_len, n_frame, n_route, day_slot)
-
+    
+    ori_train = seq_gen(train_len, data_seq, 0, n_frame, n_route, day_slot)
+    ori_val = seq_gen(val_len, data_seq, sec_train_len, n_frame, n_route, day_slot)
+    ori_test = seq_gen(test_len, data_seq, train_len , n_frame, n_route, day_slot)
+    
+    
     # seq_train = seq_gen(n_train, data_seq, 0, n_frame, n_route, day_slot)
     # seq_val = seq_gen(n_val, data_seq, n_train, n_frame, n_route, day_slot)
     # seq_test = seq_gen(n_test, data_seq, n_train + n_val, n_frame, n_route, day_slot)
@@ -185,8 +217,12 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
     # x_test = z_score(seq_test, x_stats['mean'], x_stats['std'])
     #
     # x_data = {'train': x_train, 'val': x_val, 'test': x_test}
-    x_data = {'train': seq_train, 'val': seq_val, 'test': seq_test}
-    dataset = Dataset(x_data, x_stats)
+    x_data = {'train': seq_train, 'val': seq_val, 'test': seq_test , 'ori_test': ori_test, 'ori_val': ori_val}
+    if scalar == 'z_score':
+        dataset = Dataset(x_data, x_stats,'z_score')
+    else:
+        dataset = Dataset(x_data, scaler,'min_max')
+    
     return dataset
 
 
