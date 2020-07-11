@@ -168,7 +168,7 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
         z_data = z_score(data_seq_ori.values, x_stats)
 
         x_stats = []
-        #这个地方是test集合
+       
         for column in list(seq_test.columns):
             #print(column)
             stats = {}
@@ -193,11 +193,15 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
     #seq_train = seq_gen(train_len, seq_train, 0, n_frame, n_route, day_slot)
     seq_val = seq_gen(val_len, z_data, sec_train_len, n_frame, n_route, day_slot)
     seq_test = seq_gen(test_len, seq_test1, train_len , n_frame, n_route, day_slot)
-    data_seq = pd.read_csv(file_path, header=None)
+    data_seq = pd.read_csv(file_path, header=None).values
     
-    for column in list(data_seq.columns):
-        mean_val = data_seq[column].mean()
-        data_seq[column].replace(0, mean_val, inplace=True)
+#     for column in list(data_seq.columns):
+#         mean_val = data_seq[column].mean()
+#         data_seq[column].replace(0, mean_val, inplace=True)
+    data_seq[np.where(data_seq == 0)] = np.nan
+    data_seq = pd.DataFrame(data_seq)
+    data_seq = data_seq.fillna(method='ffill', limit=len(data_seq)).fillna(method='bfill', limit=len(data_seq))
+    data_seq = np.asarray(data_seq.values)
 
     
     ori_train = seq_gen(train_len, data_seq, 0, n_frame, n_route, day_slot)
