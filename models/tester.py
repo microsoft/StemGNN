@@ -97,6 +97,7 @@ def model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min
     y_val = z_inverse(y_val,x_stats)
     y_val = y_val.reshape(s1,s2,s3,s4)
     y_val = y_val.transpose((1, 2, 0, 3))
+    x_val = inputs.get_data('ori_val')
     evl_val = evaluation(x_val[0:len_val, step_idx + n_his, :, :], y_val, x_stats)
 
     # chks: indicator that reflects the relationship of values between evl_val and min_va_val.
@@ -111,6 +112,7 @@ def model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min
         y_pred = z_inverse(y_pred,x_stats)
         y_pred = y_pred.reshape(s1,s2,s3,s4)
         y_pred = y_pred.transpose((1, 2, 0, 3))
+        x_test = inputs.get_data('ori_test')
         evl_pred = evaluation(x_test[0:len_pred, step_idx + n_his, :, :], y_pred, x_stats)
         min_val = evl_pred
     return min_va_val, min_val
@@ -151,7 +153,7 @@ def model_test(inputs, batch_size, n_his, n_pred, inf_mode, load_path):
             tmp_idx = [step_idx]
         elif inf_mode == 'merge':
             # for inference mode 'merge', the type of step index is np.ndarray.
-            step_idx = tmp_idx = np.arange(3, n_pred + 1, 3) - 1
+            step_idx = tmp_idx = np.arange(1, n_pred+1, 1) - 1
         else:
             raise ValueError(f'ERROR: test mode "{inf_mode}" is not defined.')
 
@@ -165,6 +167,9 @@ def model_test(inputs, batch_size, n_his, n_pred, inf_mode, load_path):
         y_test = z_inverse(y_test,x_stats)
         y_test = y_test.reshape(s1,s2,s3,s4)
         y_test = y_test.transpose((1, 2, 0, 3))
+        
+        x_test = inputs.get_data('ori_test')
+        
         evl = evaluation(x_test[0:len_test, step_idx + n_his, :, :], y_test, x_stats)
         # for i in range(0,len(x_test)):
         #     y_pre = y_all_data[:,i,:,:]
@@ -174,8 +179,17 @@ def model_test(inputs, batch_size, n_his, n_pred, inf_mode, load_path):
         #     pd.DataFrame(np.squeeze(x_all)).to_csv('conv_x_'+str(i)+'.csv')
         #     pd.DataFrame(np.squeeze(y_pre)).to_csv('conv_y_'+str(i)+'.csv')
 
+        amape=[]
+        amae=[]
+        armse=[]
+
+
         for ix in tmp_idx:
-            te = evl[ix - 2:ix + 1]
+            te = evl[ix*3:ix*3 + 3]
             print(f'Time Step {ix + 1}: MAPE {te[0]:7.3%}; MAE  {te[1]:4.3f}; RMSE {te[2]:6.3f}.')
+            amape.append(te[0])
+            amae.append(te[1])
+            armse.append(te[2])
+        print(f'Results: MAPE {np.mean(amape):7.3%}; MAE  {np.mean(amae):4.3f}; RMSE {np.mean(armse):6.3f}.')
         print(f'Model Test Time {time.time() - start_time:.3f}s')
     print('Testing model finished!')
