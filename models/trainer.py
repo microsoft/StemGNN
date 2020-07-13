@@ -155,8 +155,8 @@ def model_train(inputs, blocks, args, tensorboard_summary_dir, model_dir):
 
                 model_save(sess, global_steps, 'StemGNN', model_dir)
 
-                if va[1] <= minimum_mape:
-                    minimum_mape = va[0]
+                if evl[1] <= minimum_mape:
+                    minimum_mape = evl[0]
                     best_model_dir_name = pjoin(model_dir, 'best')
                     if not os.path.exists(best_model_dir_name):
                         os.makedirs(best_model_dir_name)
