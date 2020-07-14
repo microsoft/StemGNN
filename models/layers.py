@@ -4,7 +4,6 @@ from keras_self_attention import SeqSelfAttention, SeqWeightedAttention
 
 def gconv_fft_cnn_0221(x, theta, Ks, c_in, c_out, e):
     '''
-
     Spectral-based graph convolution function.
     :param x: tensor, [batch_size, n_route, c_in].spatio_conv_layer_fft_2
     :param theta: tensor, [Ks*c_in, c_out], trainable kernel parameters.
