@@ -36,7 +36,7 @@ parser.add_argument('--graph', type=str, default='default')
 parser.add_argument('--inf_mode', type=str, default='merge')
 parser.add_argument('--dataset', type=str, default='./dataset/ECG_data.csv')
 parser.add_argument('--output_dir', type=str, default='./output/ECG_data')
-parser.add_argument('--scalar', type=str, default='min_max')
+parser.add_argument('--scalar', type=str, default='z_score')
 parser.add_argument('--train', type=bool, default=True)
 parser.add_argument('--evaluate', type=bool, default=True)
 

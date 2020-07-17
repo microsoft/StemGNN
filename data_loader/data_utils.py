@@ -9,22 +9,27 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 class Dataset(object):
-    def __init__(self, data, stats):
+    def __init__(self, data, stats,type_normalize):
         self.__data = data
-        self.mean = stats['mean']
-        self.std = stats['std']
+        self.stats = stats
+        self.type_normalize = type_normalize
+        # self.mean = stats['mean']
+        # self.std = stats['std']
 
     def get_data(self, type):
         return self.__data[type]
 
     def get_stats(self):
-        return {'mean': self.mean, 'std': self.std}
+        return self.stats  #{'mean': self.mean, 'std': self.std}
+
+    def get_type(self):
+        return self.type_normalize  #{'mean': self.mean, 'std': self.std}
 
     def get_len(self, type):
         return len(self.__data[type])
 
-    def z_inverse(self, type):
-        return self.__data[type] * self.std + self.mean
+    # def z_inverse(self, type):
+    #     return self.__data[type] * self.std + self.mean
 
 
 def seq_gen(len_seq, data_seq, offset, n_frame, n_route, day_slot, C_0=1):
@@ -108,42 +113,102 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
     try:
 
         data_seq = pd.read_csv(file_path, header=None)
+        data_seq_ori = pd.read_csv(file_path, header=None)
+
 
         # data_seq = pd.read_csv(file_path, header=None)  # .values
         # for column in list(data_seq.columns):
-        #         #print(column)
-        #     mean_val = data_seq[column].mean()
-        #     data_seq[column].replace(0, mean_val, inplace=True)
-        data_seq = data_seq.values
+        # #         #print(column)
+        #      mean_val = data_seq[column].mean()
+        #      data_seq[column].replace(0, mean_val, inplace=True)
+        #data_seq = data_seq#.values
 
-        if scalar == 'min_max':  # TODO: unify the covering range with zscore
-            my_matrix = np.array(data_seq)
-            scaler = MinMaxScaler()
-            scaler.fit(my_matrix)
-            data_seq = scaler.transform(my_matrix)
+        # if scalar == 'min_max':  # TODO: unify the covering range with zscore
+        #     my_matrix = np.array(data_seq)
+        #     scaler = MinMaxScaler()
+        #     scaler.fit(my_matrix)
+        #     data_seq = scaler.transform(my_matrix)
         #        data_seq=data_seq[~(data_seq==0).all(axis=1), :]
         print(data_seq.shape)
     except FileNotFoundError:
         print(f'ERROR: input file was not found in {file_path}.')
-
+    
+    n_sec_train = n_train - n_val
     length = len(data_seq) - n_frame + 1
     train_len = int(n_train * length)
+    sec_train_len = int(n_sec_train * length)
     val_len = int(n_val * length)
     test_len = int(n_test * length)
 
     seq_train = data_seq[:train_len]
+    seq_test = data_seq[train_len:]
+
+    if scalar == 'min_max':  # TODO: unify the covering range with zscore
+        my_matrix = np.array(seq_train)
+        all_matrix = np.array(data_seq)
+        scaler = MinMaxScaler()
+        scaler.fit(my_matrix)
+        seq_train = scaler.transform(my_matrix)
+
+    x_stats = []
+    data_seq2 = pd.DataFrame(seq_train)
+    seq_test = pd.DataFrame(seq_test)
 
     if scalar == 'z_score':
-        x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}  # TODO: fix the zscore
+        
+        #x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}
+        
+        for column in list(data_seq2.columns):
+            #print(column)
+            stats = {}
+            data = np.array(data_seq2[column])
+            stats = {'mean': np.mean(data), 'std': np.std(data)}
+            x_stats.append(stats)
+        #x_stats = {'mean': np.mean(seq_train), 'std': np.std(seq_train)}  # TODO: fix the zscore
+        z_data = z_score(data_seq_ori.values, x_stats)
+
+        x_stats = []
+       
+        for column in list(seq_test.columns):
+            #print(column)
+            stats = {}
+            data = np.array(seq_test[column])
+            stats = {'mean': np.mean(data), 'std': np.std(data)}
+            x_stats.append(stats)
+
+        seq_test1 = z_score(data_seq.values, x_stats)
     else:
-        x_stats = {'mean': 0, 'std': 1}
 
-    data_seq = z_score(data_seq, x_stats['mean'], x_stats['std'])
+        for column in list(data_seq2.columns):
+            #print(column)
+            stats = {}
+            data = np.array(data_seq2[column])
+            stats = {'mean': 0, 'std': 1}
+            x_stats.append(stats)
+        
+    #data_seq = data_seq.values
 
-    seq_train = seq_gen(train_len, data_seq, 0, n_frame, n_route, day_slot)
-    seq_val = seq_gen(val_len, data_seq, train_len, n_frame, n_route, day_slot)
-    seq_test = seq_gen(test_len, data_seq, train_len + val_len, n_frame, n_route, day_slot)
 
+    seq_train = seq_gen(train_len, z_data, 0, n_frame, n_route, day_slot)
+    #seq_train = seq_gen(train_len, seq_train, 0, n_frame, n_route, day_slot)
+    seq_val = seq_gen(val_len, z_data, sec_train_len, n_frame, n_route, day_slot)
+    seq_test = seq_gen(test_len, seq_test1, train_len , n_frame, n_route, day_slot)
+    data_seq = pd.read_csv(file_path, header=None).values
+    
+#     for column in list(data_seq.columns):
+#         mean_val = data_seq[column].mean()
+#         data_seq[column].replace(0, mean_val, inplace=True)
+    data_seq[np.where(data_seq == 0)] = np.nan
+    data_seq = pd.DataFrame(data_seq)
+    data_seq = data_seq.fillna(method='ffill', limit=len(data_seq)).fillna(method='bfill', limit=len(data_seq))
+    data_seq = np.asarray(data_seq.values)
+
+    
+    ori_train = seq_gen(train_len, data_seq, 0, n_frame, n_route, day_slot)
+    ori_val = seq_gen(val_len, data_seq, sec_train_len, n_frame, n_route, day_slot)
+    ori_test = seq_gen(test_len, data_seq, train_len , n_frame, n_route, day_slot)
+    
+    
     # seq_train = seq_gen(n_train, data_seq, 0, n_frame, n_route, day_slot)
     # seq_val = seq_gen(n_val, data_seq, n_train, n_frame, n_route, day_slot)
     # seq_test = seq_gen(n_test, data_seq, n_train + n_val, n_frame, n_route, day_slot)
@@ -156,8 +221,12 @@ def data_gen(file_path, n_route, train_val_test_ratio, scalar, n_frame, day_slot
     # x_test = z_score(seq_test, x_stats['mean'], x_stats['std'])
     #
     # x_data = {'train': x_train, 'val': x_val, 'test': x_test}
-    x_data = {'train': seq_train, 'val': seq_val, 'test': seq_test}
-    dataset = Dataset(x_data, x_stats)
+    x_data = {'train': seq_train, 'val': seq_val, 'test': seq_test , 'ori_test': ori_test, 'ori_val': ori_val}
+    if scalar == 'z_score':
+        dataset = Dataset(x_data, x_stats,'z_score')
+    else:
+        dataset = Dataset(x_data, scaler,'min_max')
+    
     return dataset
 
 
