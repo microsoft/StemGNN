@@ -1,3 +1,5 @@
+import datetime
+
 from data_loader.data_utils import gen_batch
 from models.tester import model_inference
 from models.base_model import build_model, model_save
@@ -51,28 +53,27 @@ def model_train(inputs, blocks, args, tensorboard_summary_dir, model_dir):
     Ks, Kt = args.ks, args.kt
     batch_size, epoch, inf_mode, opt = args.batch_size, args.epoch, args.inf_mode, args.opt
 
-    # Placeholder for model training
-    x = tf.placeholder(tf.float32, [None, n_his + 1, n, 1], name='data_input')
-    keep_prob = tf.placeholder(tf.float32, name='keep_prob')
+    graph = tf.Graph()
+    with graph.as_default():
 
-    # Define model loss
-    train_loss, pred, e_value = build_model(x, n_his, Ks, Kt, blocks, keep_prob)
-    tf.summary.scalar('train_loss', train_loss)
-    copy_loss = tf.add_n(tf.get_collection('copy_loss'))
-    tf.summary.scalar('copy_loss', copy_loss)
+        # Placeholder for model training
+        x = tf.placeholder(tf.float32, [None, n_his + 1, n, 1], name='data_input')
+        keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
-    # Learning rate settings
-    global_steps = tf.Variable(0, trainable=False)
-    len_train = inputs.get_len('train')
-    if len_train % batch_size == 0:
-        epoch_step = len_train / batch_size
-    else:
-        epoch_step = int(len_train / batch_size) + 1
-    # Learning rate decay with rate 0.7 every 5 epochs.
-    lr = tf.train.exponential_decay(args.lr, global_steps, decay_steps=5 * epoch_step, decay_rate=0.7, staircase=True)
-    tf.summary.scalar('learning_rate', lr)
-    step_op = tf.assign_add(global_steps, 1)
-    with tf.control_dependencies([step_op]):
+        # Define model loss
+        train_loss, pred, e_value = build_model(x, n_his, Ks, Kt, blocks, keep_prob)
+        tf.summary.scalar('train_loss', train_loss)
+        copy_loss = tf.add_n(tf.get_collection('copy_loss'))
+        tf.summary.scalar('copy_loss', copy_loss)
+
+        # Learning rate settings
+        global_steps = tf.Variable(0, trainable=False)
+        len_train = inputs.get_len('train')
+        # Learning rate decay with rate 0.7 every 5 epochs.
+        lr = tf.train.exponential_decay(args.lr, global_steps, decay_steps=5, decay_rate=0.7,
+                                        staircase=True)
+        tf.summary.scalar('learning_rate', lr)
+        step_op = tf.assign_add(global_steps, 1)
         if opt == 'RMSProp':
             train_op = tf.train.RMSPropOptimizer(lr).minimize(train_loss)
         elif opt == 'ADAM':
@@ -80,70 +81,81 @@ def model_train(inputs, blocks, args, tensorboard_summary_dir, model_dir):
         else:
             raise ValueError(f'ERROR: optimizer "{opt}" is not defined.')
 
-    merged = tf.summary.merge_all()
+        merged = tf.summary.merge_all()
 
-    with tf.Session() as sess:
-        if not os.path.exists(tensorboard_summary_dir):
-            os.makedirs(tensorboard_summary_dir)
-        writer = tf.summary.FileWriter(pjoin(tensorboard_summary_dir), sess.graph)
-        sess.run(tf.global_variables_initializer())
-        print("-----------------------------------------" * 2)
-        print_num_of_total_parameters()
-        print("---------------**********-------------------" * 2)
+        with tf.Session(graph=graph) as sess:
+            if not os.path.exists(tensorboard_summary_dir):
+                os.makedirs(tensorboard_summary_dir)
+            writer = tf.summary.FileWriter(pjoin(tensorboard_summary_dir), sess.graph)
+            sess.run(tf.global_variables_initializer())
+            print("-----------------------------------------" * 2)
+            print_num_of_total_parameters()
+            print("---------------**********-------------------" * 2)
 
-        if inf_mode == 'sep':
-            # for inference mode 'sep', the type of step index is int.
-            step_idx = n_pred - 1
-            tmp_idx = [step_idx]
-            min_val = min_va_val = np.array([4e1, 1e5, 1e5])
-        elif inf_mode == 'merge':
-            # for inference mode 'merge', the type of step index is np.ndarray.
-            step_idx = tmp_idx = np.arange(3, n_pred + 1, 3) - 1
-            min_val = min_va_val = np.array([4e1, 1e5, 1e5] * len(step_idx))
-        else:
-            raise ValueError(f'ERROR: test mode "{inf_mode}" is not defined.')
+            if inf_mode == 'sep':
+                # for inference mode 'sep', the type of step index is int.
+                step_idx = n_pred - 1
+                min_val = min_va_val = np.array([sys.float_info.max] * 3)
+            elif inf_mode == 'merge':
+                # for inference mode 'merge', the type of step index is np.ndarray.
+                step_idx = np.arange(0, n_pred, 1)
+                min_val = np.tile([sys.float_info.max], [n_pred, 3])
+                min_va_val = np.tile([sys.float_info.max], (n_pred, 3))
+            else:
+                raise ValueError(f'ERROR: test mode "{inf_mode}" is not defined.')
 
-        minimum_mape = sys.float_info.max
+            minimum_mape = sys.float_info.max
 
-        for i in range(epoch):
-            start_time = time.time()
-            for j, x_batch in enumerate(
-                    gen_batch(inputs.get_data('train'), batch_size, dynamic_batch=True, shuffle=True)):
-                summary, _ = sess.run([merged, train_op], feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
-                writer.add_summary(summary, i * epoch_step + j)
-                if j % 50 == 0:
-                    loss_value = \
-                        sess.run([train_loss, copy_loss],
-                                 feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
-                    print(f'Epoch {i:2d}, Step {j:3d}: [{loss_value[0]:.3f}, {loss_value[1]:.3f}]')
-            print(f'Epoch {i:2d} Training Time {time.time() - start_time:.3f}s')
-
-            # e_value_1 = sess.run([e_value], feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
-
-            # pd.DataFrame(e_value_1).to_csv("e_value" + str(i) + ".csv")
-            if not os.path.exists(model_dir):
-                os.makedirs(model_dir)
-            if (i + 1) % args.save == 0:
+            for i in range(epoch):
                 start_time = time.time()
-                min_va_val, min_val = \
-                    model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min_va_val, min_val)
+                start = datetime.datetime.now()
+                for j, x_batch in enumerate(
+                        gen_batch(inputs.get_data('train'), batch_size, dynamic_batch=True, shuffle=True)):
+                    start_0 = datetime.datetime.now()
+                    # loss_value = sess.run(train_loss, feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
+                    summary, loss_value, _ = sess.run([merged, train_loss, train_op],
+                                                      feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
+                    # print(f'{(datetime.datetime.now() - start_0).total_seconds() / (j + 1)} seconds')
 
-                for ix in tmp_idx:
-                    va, te = min_va_val[ix - 2:ix + 1], min_val[ix - 2:ix + 1]
-                    print(f'Time Step {ix + 1}: '
-                          f'MAPE {va[0]:7.3%}, {te[0]:7.3%}; '
-                          f'MAE  {va[1]:4.3f}, {te[1]:4.3f}; '
-                          f'RMSE {va[2]:6.3f}, {te[2]:6.3f}.')
-                print(f'Epoch {i:2d} Inference Time {time.time() - start_time:.3f}s')
+                    # writer.add_summary(summary, i * epoch_step + j)
+                    # print(f'loss {loss_value}')
+                    # after_gft = sess.run("GFT:0", feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
+                    if j % 50 == 0:
+                        end = datetime.datetime.now()
+                        loss_value = \
+                            sess.run([train_loss, copy_loss],
+                                     feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
+                        print(
+                            f'Epoch {i:2d}, Step {j:3d}: {(end - start).total_seconds() / (j + 1)} seconds, [{loss_value[0]:.9f}, {loss_value[1]:.9f}]')
+                print(f'Epoch {i:2d} Training Time {time.time() - start_time:.3f}s')
 
-                model_save(sess, global_steps, 'StemGNN', model_dir)
+                sess.run(step_op)
+                # e_value_1 = sess.run([e_value], feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
 
-                if va[0] < minimum_mape:
-                    minimum_mape = va[0]
-                    best_model_dir_name = pjoin(model_dir, 'best')
-                    if not os.path.exists(best_model_dir_name):
-                        os.makedirs(best_model_dir_name)
-                    model_save(sess, global_steps, 'StemGNN', best_model_dir_name)
+                # pd.DataFrame(e_value_1).to_csv("e_value" + str(i) + ".csv")
+                if not os.path.exists(model_dir):
+                    os.makedirs(model_dir)
+                if (i + 1) % args.save == 0:
+                    start_time = time.time()
+                    min_va_val, min_val = \
+                        model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min_va_val, min_val)
 
-        writer.close()
-    print('Training model finished!')
+                    for ix in step_idx:
+                        va, te = min_va_val[ix], min_val[ix]
+                        print(f'Time Step {ix + 1}: '
+                              f'MAPE {va[0]:7.9%}, {te[0]:7.9%}; '
+                              f'MAE  {va[1]:4.9f}, {te[1]:4.9f}; '
+                              f'RMSE {va[2]:6.9f}, {te[2]:6.9f}.')
+                    print(f'Epoch {i:2d} Inference Time {time.time() - start_time:.3f}s')
+
+                    model_save(sess, global_steps, 'StemGNN', model_dir)
+
+                    if va[1] < minimum_mape:
+                        minimum_mape = va[1]
+                        best_model_dir_name = pjoin(model_dir, 'best')
+                        if not os.path.exists(best_model_dir_name):
+                            os.makedirs(best_model_dir_name)
+                        model_save(sess, global_steps, 'StemGNN', best_model_dir_name)
+
+            writer.close()
+        print('Training model finished!')

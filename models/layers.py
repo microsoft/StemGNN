@@ -2,44 +2,14 @@ import tensorflow as tf
 from keras_self_attention import SeqSelfAttention, SeqWeightedAttention
 
 
-def gconv_fft_cnn_0221(x, theta, Ks, c_in, c_out, e):
-    '''
-
-    Spectral-based graph convolution function.
-    :param x: tensor, [batch_size, n_route, c_in].spatio_conv_layer_fft_2
-    :param theta: tensor, [Ks*c_in, c_out], trainable kernel parameters.
-    :param Ks: int, kernel size of graph convolution.
-    :param c_in: int, size of input channel.
-    :param c_out: int, size of output channel.
-    :return: tensor, [batch_size, n_route, c_out].
-    '''
-    # graph kernel: tensor, [n_route, Ks*n_route]
-    # if Ks != 1:
-    #    kernel = tf.get_collection('graph_kernel_2')[0]
-    # if Ks == 1:
-    #    kernel = tf.get_collection('graph_V')[0]
-    kernel = tf.expand_dims(e, -1)
+def gconv_fft_cnn_0221(x, theta, e):
     kernel = tf.matrix_diag(e)
     n = tf.shape(kernel)[0]
-    # [batch_size, time_step, n_route, c_in]
     batch_size, time_step, n_route, c_in = x.get_shape().as_list()
-    # x -> [batch_size, c_in, n_route] -> [batch_size*c_in, n_route]
-    # x_tmp = tf.reshape(x,[-1,c_in])
-    #
     x_tmp = tf.reshape(tf.transpose(x, [0, 1, 3, 2]), [-1, n])
     real_kernel = tf.multiply(theta, kernel)
     x_mul = tf.matmul(x_tmp, real_kernel)
-    x_gconv = tf.reshape(x_mul, [-1, n, c_out])
-    # x_mul = x_tmp * ker -> [batch_size*c_in, Ks*n_route] -> [batch_size, c_in, Ks, n_route]
-    # x_mul = tf.reshape(tf.matmul(x_tmp, kernel), [-1, time_step, c_in, n_route])
-    # x_mul = tf.transpose(x_mul, [0, 1, 3, 2])
-    # theta = tf.get_variable('theta_input', shape=[c_in, c_in, c_in, 1], dtype=tf.float32)
-    # tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(theta))
-
-    # x_input = tf.nn.conv2d(x_mul, theta, strides=[1, 1, 1, 1], padding='SAME')
-
-    # x_gconv = x_input  # tf.reshape(tf.matmul(x_input, theta), [-1, n, c_out])
-
+    x_gconv = tf.transpose(tf.reshape(x_mul, [-1, c_in, n_route]), [0, 2, 1])
     return x_gconv
 
 
@@ -56,10 +26,10 @@ def graph_fft(x, v, flag=True):
         U = tf.transpose(v)  # tf.get_collection('graph_U_T')[0]  # (228*228 n*n)
     else:
         U = v  # tf.get_collection('graph_U')[0]
-    #x_tmp = tf.reshape(tf.transpose(x, [2, 0, 1, 3]), [n, -1])
+    # x_tmp = tf.reshape(tf.transpose(x, [2, 0, 1, 3]), [n, -1])
     x = tf.matmul(U, x)  # .reshape()
     # x = tf.multiply( U, x_tmp)
-    #x = tf.reshape(x, [-1, T, n, c_in])
+    # x = tf.reshape(x, [-1, T, n, c_in])
     return x
 
 
@@ -110,7 +80,8 @@ def temporal_conv_layer(x, Kt, c_in, c_out, act_func='relu'):
 
     # keep the original input for residual connection.
     _, time_step_temp, route_temp, channel_temp = x_input.get_shape().as_list()
-    x_input = x_input[:, Kt - 1:T, :, :]
+    x_input = x_input[:, Kt // 2 - 1 + Kt % 2:T - Kt // 2, :, :]
+    # x_input = x_input[:, Kt - 1:T, :, :]
 
     if act_func == 'GLU':
         # gated liner unit
@@ -119,20 +90,20 @@ def temporal_conv_layer(x, Kt, c_in, c_out, act_func='relu'):
         bt = tf.get_variable(name='bt', initializer=tf.zeros([2 * c_out]), dtype=tf.float32)
         x_conv = tf.nn.conv2d(x, wt, strides=[1, 1, 1, 1], padding='VALID') + bt
         return (x_conv[:, :, :, 0:c_out] + x_input) * tf.nn.sigmoid(x_conv[:, :, :, -c_out:])
-    elif act_func == 'GRU':
-        _, _, _, channel_temp = x_input.get_shape().as_list()
-        cell = tf.keras.layers.GRUCell(channel_temp)  # ,return_sequences=True)
-        x_input = tf.reshape(x_input, [-1, T - Kt + 1, channel_temp])
-        outputs, _ = tf.nn.dynamic_rnn(cell, x_input, dtype=tf.float32)
-        outputs = tf.reshape(outputs, [-1, T - Kt + 1, n, channel_temp])
-        return outputs
-    elif act_func == 'GRU_shape':
-
-        cell = tf.keras.layers.GRUCell(channel_temp)  # ,return_sequences=True)
-        x_input = tf.reshape(x_input, [-1, T - Kt + 1, channel_temp])  # route_temp*
-        outputs, _ = tf.nn.dynamic_rnn(cell, x_input, dtype=tf.float32)
-        outputs = tf.reshape(outputs, [-1, time_step_temp, route_temp, channel_temp])
-        return outputs
+    # elif act_func == 'GRU':
+    #     _, _, _, channel_temp = x_input.get_shape().as_list()
+    #     cell = tf.keras.layers.GRUCell(channel_temp)  # ,return_sequences=True)
+    #     x_input = tf.reshape(x_input, [-1, T - Kt + 1, channel_temp])
+    #     outputs, _ = tf.nn.dynamic_rnn(cell, x_input, dtype=tf.float32)
+    #     outputs = tf.reshape(outputs, [-1, T - Kt + 1, n, channel_temp])
+    #     return outputs
+    # elif act_func == 'GRU_shape':
+    #
+    #     cell = tf.keras.layers.GRUCell(channel_temp)  # ,return_sequences=True)
+    #     x_input = tf.reshape(x_input, [-1, T - Kt + 1, channel_temp])  # route_temp*
+    #     outputs, _ = tf.nn.dynamic_rnn(cell, x_input, dtype=tf.float32)
+    #     outputs = tf.reshape(outputs, [-1, time_step_temp, route_temp, channel_temp])
+    #     return outputs
     else:
         wt = tf.get_variable(name='wt', shape=[Kt, 1, c_in, c_out], dtype=tf.float32)
         tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(wt))
@@ -173,7 +144,7 @@ def temporal_conv_layer_imag(x, Kt, c_in, c_out, act_func='relu'):
         x_input = x
 
     # keep the original input for residual connection.
-    x_input = x_input[:, Kt - 1:T, :, :]
+    x_input = x_input[:, Kt // 2 - 1 + Kt % 2:T - Kt // 2, :, :]
     _, _, _, channel_temp = x_input.get_shape().as_list()
 
     if act_func == 'GLU':
@@ -234,7 +205,7 @@ def temporal_conv_layer_input(x, Kt, c_in, c_out, act_func='relu', type='x'):
 
     # keep the original input for residual connection.
     _, time_step_temp, route_temp, channel_temp = x_input.get_shape().as_list()
-    x_input = x_input[:, Kt - 1:T, :, :]
+    x_input = x_input[:, Kt // 2 - 1 + Kt % 2:T - Kt // 2, :, :]
 
     if act_func == 'GLU':
         # gated liner unit
@@ -286,15 +257,14 @@ def fc(x, type='fore'):
     # keep the original input for residual connection.
     _, time_step_temp, route_temp, channel_temp = x.get_shape().as_list()
     # x_input = x_input[:, Kt - 1:T, :, :]
-    x_tmp = tf.reshape(x, [-1, channel_temp])
-    # x_tmp = tf.reshape(tf.transpose(x, [0, 2, 3, 1]), [-1, time_step_temp])
+    x = tf.reshape(x, [-1, channel_temp])
     # [time_step_temp,T-Kt+1]
     wt = tf.get_variable(name='wt_' + type, shape=[channel_temp, channel_temp], dtype=tf.float32)
     tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(wt))
     bt = tf.get_variable(name='bt_' + type, initializer=tf.zeros([channel_temp]), dtype=tf.float32)
-    hidden = tf.sigmoid(tf.add(tf.matmul(x_tmp, wt), bt))
-    out = tf.nn.softmax(hidden)
-    outputs = tf.reshape(out, [-1, time_step_temp, route_temp, channel_temp])
+    outputs = tf.sigmoid(tf.add(tf.matmul(x, wt), bt))
+    outputs = tf.nn.softmax(outputs)
+    outputs = tf.reshape(outputs, [-1, time_step_temp, route_temp, channel_temp])
     return outputs
 
 
@@ -328,7 +298,7 @@ def fore_auto(x, Kt, c_in, c_out):
 
     # keep the original input for residual connection.
     _, time_step_temp, route_temp, channel_temp = x.get_shape().as_list()
-    x_input = x_input[:, Kt - 1:T, :, :]
+    x_input = x_input[:, Kt // 2 - 1 + Kt % 2:T - Kt // 2, :, :]
 
     x_tmp = tf.reshape(tf.transpose(x, [0, 2, 3, 1]), [-1, time_step_temp])
     # [time_step_temp,T-Kt+1]
@@ -350,53 +320,41 @@ def fore_auto(x, Kt, c_in, c_out):
     return outputs
 
 
-def spatio_conv_layer_fft_0221(x, Ks, c_in, c_out, e):
+def spatio_conv_layer_fft_0221(x, c, e):
     '''
 
     :param x: tensor, [batch_size, time_step, n_route, c_in].
     :param Ks: int, kernel size of spatial convolution.
     :param c_in: int, size of input channel.
-    :param c_out: int, size of output channel.
+    :param c: int, size of output channel.
     :return: tensor, [batch_size, time_step, n_route, c_out].
     '''
     _, T, n, _ = x.get_shape().as_list()
 
-    Ks = 1
-
-    if c_in > c_out:
-        # bottleneck down-sampling
-        w_input = tf.get_variable('ws_input_2', shape=[1, 1, c_in, c_out], dtype=tf.float32)
-        tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(w_input))
-        x_input = tf.nn.conv2d(x, w_input, strides=[1, 1, 1, 1], padding='SAME')
-    elif c_in < c_out:
-        # if the size of input channel is less than the output,
-        # padding x to the same size of output channel.
-        # Note, _.get_shape() cannot convert a partially known TensorShape to a Tensor.
-        x_input = tf.concat([x, tf.zeros([tf.shape(x)[0], T, n, c_out - c_in])], axis=3)
-    else:
-        x_input = x
+    # if c_in > c_out:
+    #     # bottleneck down-sampling
+    #     w_input = tf.get_variable('ws_input_2', shape=[1, 1, c_in, c_out], dtype=tf.float32)
+    #     tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(w_input))
+    #     x_input = tf.nn.conv2d(x, w_input, strides=[1, 1, 1, 1], padding='SAME')
+    # elif c_in < c_out:
+    #     # if the size of input channel is less than the output,
+    #     # padding x to the same size of output channel.
+    #     # Note, _.get_shape() cannot convert a partially known TensorShape to a Tensor.
+    #     x_input = tf.concat([x, tf.zeros([tf.shape(x)[0], T, n, c_out - c_in])], axis=3)
+    # else:
+    #     x_input = x
 
     # shape=[c_in, c_in, c_in, 1] Ks * c_in, c_out
     # ws = tf.get_variable(name='ws', shape=[Ks * c_in, c_out], dtype=tf.float32)
     ws = tf.get_variable(name='ws_2', shape=[n, n], dtype=tf.float32)
-    tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(ws))
-    variable_summaries(ws, 'theta')
-    bs = tf.get_variable(name='bs_2', initializer=tf.zeros([c_out]), dtype=tf.float32)
+    # tf.add_to_collection(name='weight_decay', value=tf.nn.l2_loss(ws))
+    # variable_summaries(ws, 'theta')
+    bs = tf.get_variable(name='bs_2', initializer=tf.zeros([c]), dtype=tf.float32)
     # x -> [batch_size*time_step, n_route, c_in] -> [batch_size*time_step, n_route, c_out]
 
     GF = x
-    x_gc = gconv_fft_cnn_0221(GF, ws, Ks, c_in, c_out, e) + bs
-
-    # x_gconv = gconv_fft(tf.reshape(GF, [-1, n, c_out]), ws, Ks, c_in, c_out) + bs
-
-    # x_gconv = gconv_fft_only_mul(tf.reshape(GF, [-1, n, c_out]), ws, Ks, c_in, c_out) + bs
-
-    x_gc = tf.reshape(x_gc, [-1, T, n, c_out])
-    # x_g -> [batch_size, time_step, n_route, c_out]
-
-    # x_gc = tf.reshape(x_gconv, [-1, T, n, c_out])
-
-    # return tf.nn.relu(GF[:, :, :, 0:c_out] + x_input)
+    x_gc = gconv_fft_cnn_0221(GF, ws, e) + bs
+    x_gc = tf.reshape(x_gc, [-1, T, n, c])
     return x_gc  # tf.nn.relu(x_gc[:, :, :, 0:c_out]+ x_input )
 
 
@@ -430,27 +388,30 @@ def stemGNN_block(x, Ks, Kt, channels, scope, keep_prob, e, v, l1, flag=0, act_f
         GF = graph_fft(x, v, True)
         x = GF
 
-        x = tf.reshape(tf.transpose(x, [0, 2, 3, 1]), [-1, T])
+        x = tf.transpose(x, [0, 2, 3, 1])
         x = tf.spectral.fft(tf.cast(x, dtype=tf.complex64))
+        x = tf.transpose(x, [0, 3, 1, 2])
+
         x = tf.real(x)
         x_imag = tf.imag(x)
-        
-        x =  tf.transpose(tf.reshape(x,[-1,n,c_in,T]),[0,3,1,2])
-        x_imag =  tf.transpose(tf.reshape(x_imag,[-1,n,c_in,T]),[0,3,1,2])
+
+        x = tf.transpose(tf.reshape(x, [-1, n, c_in, T]), [0, 3, 1, 2])
+        x_imag = tf.transpose(tf.reshape(x_imag, [-1, n, c_in, T]), [0, 3, 1, 2])
         # c_in = c_t
         _, time_step_temp, route_temp, channel_temp = x.get_shape().as_list()
         x = temporal_conv_layer(x, Kt, c_si, c_t, 'GLU')
         x_imag = temporal_conv_layer_imag(x_imag, Kt, c_si, c_t, 'GLU')
-        _, T, n, cc = x.get_shape().as_list()
-        x = tf.reshape(tf.transpose(x, [0, 2, 3, 1]), [-1, T])
-        x_imag = tf.reshape(tf.transpose(x_imag, [0, 2, 3, 1]), [-1, T])
-        x = tf.to_float(tf.spectral.ifft((tf.complex(x, x_imag))))
-        x =  tf.transpose(tf.reshape(x,[-1,n,cc,T]),[0,3,1,2])
+        _, T, n, _ = x.get_shape().as_list()
+
+        compl = tf.complex(x, x_imag)
+        compl = tf.transpose(compl, [0, 2, 3, 1])
+        x = tf.to_float(tf.spectral.ifft(compl))
+        x = tf.transpose(x, [0, 3, 1, 2])
 
         # g_conv
         _, _, _, c_fft = x.get_shape().as_list()
 
-        x = spatio_conv_layer_fft_0221(x, Ks, c_fft, c_fft, e)
+        x = spatio_conv_layer_fft_0221(x, c_fft, e)
 
         # x = spatio_conv_layer_fft_0222(x, Ks, c_fft, c_fft,e)
 
@@ -465,7 +426,7 @@ def stemGNN_block(x, Ks, Kt, channels, scope, keep_prob, e, v, l1, flag=0, act_f
 
         back_cast = fc(x, 'back')
         x = back_cast
-        x = tf.nn.relu(x[:, :, :, 0:c_fft] + x_input, 'relu_test')
+        # x = tf.nn.relu(x[:, :, :, 0:c_fft] + x_input, 'relu_test')
 
         # x= attention_conv_layer(x)
         if flag == 0:
