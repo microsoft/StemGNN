@@ -38,3 +38,4 @@ venv.bak/
 
 output/
 .idea/
+test.py

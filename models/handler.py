@@ -1,9 +1,7 @@
 from datetime import datetime
 
 from data_loader.forecast_dataloader import ForecastDataset, de_normalized
-from models.tester import model_inference
 from models.base_model import Model
-from os.path import join as pjoin
 import torch
 import torch.nn as nn
 import torch.utils.data as torch_data
@@ -23,20 +21,32 @@ def save_model(model, model_dir, epoch=None):
     with open(file_name, 'wb') as f:
         torch.save(model, f)
 
+def _do_restore_model(model_dir):
+    if not model_dir:
+        return
+    file_name = os.path.join(model_dir, '_stemgnn.pt')
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+    if not os.path.exists(file_name):
+        return
+    with open(file_name, 'rb') as f:
+        model = torch.load(f)
+    return model
+
+
 def evaluate(target, forecast, axis=None):
     mape = np.mean(np.abs(target - forecast) / (np.abs(target) + 1e-5), axis).astype(np.float64)
     mae = np.mean(np.abs(target - forecast), axis).astype(np.float64)
-    rmse = np.sqrt(np.mean((target - target) ** 2, axis)).astype(np.float64)
+    rmse = np.sqrt(np.mean((target - forecast) ** 2, axis)).astype(np.float64)
     return mape, mae, rmse
 
 
 
 def inference(model, dataloader, device, node_cnt,
-              history_length, forecast_length, noise_rate=None):
+              history_length, forecast_length):
     forecast_set = []
     target_set = []
     model.eval()
-    if noise_rate: var = torch.var(torch.tensor(dataloader.dataset.data), dim=0)
     with torch.no_grad():
         for i, (inputs, target) in enumerate(dataloader):
             inputs = inputs.to(device)
@@ -50,9 +60,7 @@ def inference(model, dataloader, device, node_cnt,
                     raise Exception('Get blank inference result')
                 inputs[:, :history_length - len_model_output, :] = inputs[:, len_model_output:history_length,
                                                                    :].clone()
-                inputs[:, history_length - len_model_output:, :] = forecast_result.clone() + torch.normal(
-                    mean=torch.zeros_like(forecast_result),
-                    std=var * noise_rate) if noise_rate else forecast_result.clone()
+                inputs[:, history_length - len_model_output:, :] = forecast_result.clone()
                 forecast_steps[:, step:min(forecast_length - step, len_model_output) + step, :] = \
                     forecast_result[:, :min(forecast_length - step, len_model_output), :].detach().cpu().numpy()
                 step += min(forecast_length - step, len_model_output)
@@ -105,11 +113,11 @@ def train(train_data, valid_data, args, result_file):
         raise Exception('Cannot organize enough training data')
     if len(valid_data) == 0:
         raise Exception('Cannot organize enough validation data')
-    if args.scalar == 'z_score':
+    if args.norm_method == 'z_score':
         train_mean = np.mean(train_data, axis=0)
         train_std = np.std(train_data, axis=0)
         normalize_statistic = {"mean": train_mean, "std": train_std}
-    elif args.scalar == 'min_max':
+    elif args.norm_method == 'min_max':
         train_min = np.min(train_data, axis=0)
         train_max = np.max(train_data, axis=0)
         normalize_statistic = {"min": train_min, "max": train_max}
@@ -140,7 +148,6 @@ def train(train_data, valid_data, args, result_file):
     best_validate_mae = None
     validate_score_non_decrease_count = 0
     correlation_result = None
-    percentile = None
     error_metrics = {}
     for epoch in range(args.epoch):
         epoch_start_time = time.time()
@@ -182,5 +189,15 @@ def train(train_data, valid_data, args, result_file):
         if args.early_stop and validate_score_non_decrease_count >= args.early_stop_step:
             break
 
-    return error_metrics, normalize_statistic, correlation_result, percentile
+    return error_metrics, normalize_statistic
 
+def test(test_data, args, result_train_file, result_test_file, normalize_statistic):
+    model = _do_restore_model(result_train_file)
+    node_cnt = test_data.shape[1]
+    test_set = ForecastDataset(test_data, window_size=args.window_size, horizon=args.horizon,
+                                    normalize_method=args.norm_method, norm_statistic=normalize_statistic)
+    test_loader = torch_data.DataLoader(test_set, batch_size=args.batch_size, drop_last=False,
+                                             shuffle=False, num_workers=0)
+    result = validate(model, test_loader, args.device, args.norm_method, normalize_statistic,
+                         node_cnt, args.batch_size, args.window_size, args.horizon,
+                         result_file=result_test_file)
