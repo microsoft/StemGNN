@@ -1,149 +1,186 @@
-from data_loader.data_utils import gen_batch
-from models.tester import model_inference
-from models.base_model import build_model, model_save
-from os.path import join as pjoin
+from datetime import datetime
 
-import tensorflow.compat.v1 as tf
+from data_loader.forecast_dataloader import ForecastDataset, de_normalized
+from models.tester import model_inference
+from models.base_model import Model
+from os.path import join as pjoin
+import torch
+import torch.nn as nn
+import torch.utils.data as torch_data
 import numpy as np
 import time
-import logging
-import pandas as pd
 import os
-import sys
-
-tf.disable_eager_execution()
 
 
-def print_num_of_total_parameters(output_detail=True, output_to_logging=False):
-    total_parameters = 0
-    parameters_string = ""
 
-    for variable in tf.trainable_variables():
+def save_model(model, model_dir, epoch=None):
+    if model_dir is None:
+        return
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+    epoch = str(epoch) if epoch else ''
+    file_name = os.path.join(model_dir, epoch + '_stemgnn.pt')
+    with open(file_name, 'wb') as f:
+        torch.save(model, f)
 
-        shape = variable.get_shape()
-        variable_parameters = 1
-        for dim in shape:
-            variable_parameters *= dim.value
-        total_parameters += variable_parameters
-        if len(shape) == 1:
-            parameters_string += ("%s %d, \n" % (variable.name, variable_parameters))
-        else:
-            parameters_string += ("%s %s=%d, \n" % (variable.name, str(shape), variable_parameters))
+def evaluate(target, forecast, axis=None):
+    mape = np.mean(np.abs(target - forecast) / (np.abs(target) + 1e-5), axis).astype(np.float64)
+    mae = np.mean(np.abs(target - forecast), axis).astype(np.float64)
+    rmse = np.sqrt(np.mean((target - target) ** 2, axis)).astype(np.float64)
+    return mape, mae, rmse
 
-    if output_to_logging:
-        if output_detail:
-            logging.info(parameters_string)
-        logging.info("Total %d variables, %s params" % (len(tf.trainable_variables()), "{:,}".format(total_parameters)))
+
+
+def inference(model, dataloader, device, node_cnt,
+              history_length, forecast_length, noise_rate=None):
+    forecast_set = []
+    target_set = []
+    model.eval()
+    if noise_rate: var = torch.var(torch.tensor(dataloader.dataset.data), dim=0)
+    with torch.no_grad():
+        for i, (inputs, target) in enumerate(dataloader):
+            inputs = inputs.to(device)
+            target = target.to(device)
+            step = 0
+            forecast_steps = np.zeros([inputs.size()[0], forecast_length, node_cnt], dtype=np.float)
+            while step < forecast_length:
+                forecast_result, a = model(inputs)
+                len_model_output = forecast_result.size()[1]
+                if len_model_output == 0:
+                    raise Exception('Get blank inference result')
+                inputs[:, :history_length - len_model_output, :] = inputs[:, len_model_output:history_length,
+                                                                   :].clone()
+                inputs[:, history_length - len_model_output:, :] = forecast_result.clone() + torch.normal(
+                    mean=torch.zeros_like(forecast_result),
+                    std=var * noise_rate) if noise_rate else forecast_result.clone()
+                forecast_steps[:, step:min(forecast_length - step, len_model_output) + step, :] = \
+                    forecast_result[:, :min(forecast_length - step, len_model_output), :].detach().cpu().numpy()
+                step += min(forecast_length - step, len_model_output)
+            forecast_set.append(forecast_steps)
+            target_set.append(target.detach().cpu().numpy())
+    return np.concatenate(forecast_set, axis=0), np.concatenate(target_set, axis=0)
+
+
+def validate(model, dataloader, device, normalize_method, statistic,
+             node_cnt, batch_size, window_size, horizon,
+             result_file=None):
+    start = datetime.now()
+    forecast_norm, target_norm = inference(model, dataloader, device,
+                                           node_cnt, window_size, horizon)
+    if normalize_method and statistic:
+        forecast = de_normalized(forecast_norm, normalize_method, statistic)
+        target = de_normalized(target_norm, normalize_method, statistic)
     else:
-        if output_detail:
-            print(parameters_string)
-        print("Total %d variables, %s params" % (len(tf.trainable_variables()), "{:,}".format(total_parameters)))
+        forecast, target = forecast_norm, target_norm
+    score = evaluate(target, forecast)
+    score_by_node = evaluate(target, forecast, axis=(0,1))
+    end = datetime.now()
+    print(f'{(end - start).total_seconds()} seconds')
+
+    score_norm = evaluate(target_norm, forecast_norm)
+    print(f'NORM: MAPE {score_norm[0]:7.9%}; MAE {score_norm[1]:7.9f}; RMSE {score_norm[2]:7.9f}.')
+    print(f'RAW : MAPE {score[0]:7.9%}; MAE {score[1]:7.9f}; RMSE {score[2]:7.9f}.')
+    if result_file:
+        if not os.path.exists(result_file):
+            os.makedirs(result_file)
+        step_to_print = 0
+        forcasting_2d = forecast[:, step_to_print, :]
+        forcasting_2d_target = target[:, step_to_print, :]
+
+        np.savetxt(f'{result_file}/target.csv', forcasting_2d_target, delimiter=",")
+        np.savetxt(f'{result_file}/predict.csv', forcasting_2d, delimiter=",")
+        np.savetxt(f'{result_file}/predict_abs_error.csv',
+                   np.abs(forcasting_2d - forcasting_2d_target), delimiter=",")
+        np.savetxt(f'{result_file}/predict_ape.csv',
+                   np.abs((forcasting_2d - forcasting_2d_target) / forcasting_2d_target), delimiter=",")
+
+    return dict(mae=score[1], mae_node=score_by_node[1], mape=score[0], mape_node=score_by_node[0],
+                rmse=score[2], rmse_node=score_by_node[2])
 
 
-def model_train(inputs, blocks, args, tensorboard_summary_dir, model_dir):
-    '''
-    Train the base model.
-    :param inputs: instance of class Dataset, data source for training.
-    :param blocks: list, channel configs of st_conv blocks.
-    :param args: instance of class argparse, args for training.
-    '''
-    n, n_his, n_pred = args.n_route, args.n_his, args.n_pred
-    Ks, Kt = args.ks, args.kt
-    batch_size, epoch, inf_mode, opt = args.batch_size, args.epoch, args.inf_mode, args.opt
-
-    # Placeholder for model training
-    x = tf.placeholder(tf.float32, [None, n_his + 1, n, 1], name='data_input')
-    keep_prob = tf.placeholder(tf.float32, name='keep_prob')
-
-    # Define model loss
-    train_loss, pred, e_value = build_model(x, n_his, Ks, Kt, blocks, keep_prob)
-    tf.summary.scalar('train_loss', train_loss)
-    copy_loss = tf.add_n(tf.get_collection('copy_loss'))
-    tf.summary.scalar('copy_loss', copy_loss)
-
-    # Learning rate settings
-    global_steps = tf.Variable(0, trainable=False)
-    len_train = inputs.get_len('train')
-    if len_train % batch_size == 0:
-        epoch_step = len_train / batch_size
+def train(train_data, valid_data, args, result_file):
+    node_cnt = train_data.shape[1]
+    model = Model(node_cnt, args.stack_count, args.window_size, args.multi_layer, horizon=args.horizon)
+    if len(train_data) == 0:
+        raise Exception('Cannot organize enough training data')
+    if len(valid_data) == 0:
+        raise Exception('Cannot organize enough validation data')
+    if args.scalar == 'z_score':
+        train_mean = np.mean(train_data, axis=0)
+        train_std = np.std(train_data, axis=0)
+        normalize_statistic = {"mean": train_mean, "std": train_std}
+    elif args.scalar == 'min_max':
+        train_min = np.min(train_data, axis=0)
+        train_max = np.max(train_data, axis=0)
+        normalize_statistic = {"min": train_min, "max": train_max}
     else:
-        epoch_step = int(len_train / batch_size) + 1
-    # Learning rate decay with rate 0.7 every 5 epochs.
-    lr = tf.train.exponential_decay(args.lr, global_steps, decay_steps=5 * epoch_step, decay_rate=0.7, staircase=True)
-    tf.summary.scalar('learning_rate', lr)
-    step_op = tf.assign_add(global_steps, 1)
-    with tf.control_dependencies([step_op]):
-        if opt == 'RMSProp':
-            train_op = tf.train.RMSPropOptimizer(lr).minimize(train_loss)
-        elif opt == 'ADAM':
-            train_op = tf.train.AdamOptimizer(lr).minimize(train_loss)
-        else:
-            raise ValueError(f'ERROR: optimizer "{opt}" is not defined.')
+        normalize_statistic = None
+    train_set = ForecastDataset(train_data, window_size=args.window_size, horizon=args.horizon,
+                                normalize_method=args.norm_method, norm_statistic=normalize_statistic)
+    valid_set = ForecastDataset(valid_data, window_size=args.window_size, horizon=args.horizon,
+                                normalize_method=args.norm_method, norm_statistic=normalize_statistic)
+    train_loader = torch_data.DataLoader(train_set, batch_size=args.batch_size, drop_last=False, shuffle=True,
+                                         num_workers=0)
+    valid_loader = torch_data.DataLoader(valid_set, batch_size=args.batch_size, shuffle=False, num_workers=0)
 
-    merged = tf.summary.merge_all()
+    forecast_loss = nn.MSELoss(reduction='mean').to(args.device)
+    if args.optimizer == 'RMSProp':
+        my_optim = torch.optim.RMSprop(params=model.parameters(), lr=args.lr, eps=1e-08)
+    else:
+        my_optim = torch.optim.Adam(params=model.parameters(), lr=args.lr, betas=(0.9, 0.999))
+    my_lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=my_optim, gamma=args.decay_rate)
 
-    with tf.Session() as sess:
-        if not os.path.exists(tensorboard_summary_dir):
-            os.makedirs(tensorboard_summary_dir)
-        writer = tf.summary.FileWriter(pjoin(tensorboard_summary_dir), sess.graph)
-        sess.run(tf.global_variables_initializer())
-        print("-----------------------------------------" * 2)
-        print_num_of_total_parameters()
-        print("---------------**********-------------------" * 2)
+    total_params = 0
+    for name, parameter in model.named_parameters():
+        if not parameter.requires_grad: continue
+        param = parameter.numel()
+        total_params += param
+    print(f"Total Trainable Params: {total_params}")
 
-        if inf_mode == 'sep':
-            # for inference mode 'sep', the type of step index is int.
-            step_idx = n_pred - 1
-            tmp_idx = [step_idx]
-            min_val = min_va_val = np.array([4e1, 1e5, 1e5])
-        elif inf_mode == 'merge':
-            # for inference mode 'merge', the type of step index is np.ndarray.
-            step_idx = tmp_idx = np.arange(3, n_pred + 1, 3) - 1
-            min_val = min_va_val = np.array([4e1, 1e5, 1e5] * len(step_idx))
-        else:
-            raise ValueError(f'ERROR: test mode "{inf_mode}" is not defined.')
+    best_validate_mae = None
+    validate_score_non_decrease_count = 0
+    correlation_result = None
+    percentile = None
+    error_metrics = {}
+    for epoch in range(args.epoch):
+        epoch_start_time = time.time()
+        model.train()
+        loss_total = 0
+        cnt = 0
+        for i, (inputs, target) in enumerate(train_loader):
+            inputs = inputs.to(args.device)
+            target = target.to(args.device)
+            model.zero_grad()
+            forecast, _ = model(inputs)
+            loss = forecast_loss(forecast, target)
+            cnt += 1
+            loss.backward()
+            my_optim.step()
+            loss_total += float(loss)
+        print('| end of epoch {:3d} | time: {:5.2f}s | train_total_loss {:5.4f}'.format(epoch, (
+                time.time() - epoch_start_time), loss_total / cnt))
+        save_model(model, result_file, epoch)
+        if epoch % args.exponential_decay_step == 0 and epoch > 0:
+            my_lr_scheduler.step()
+        if (epoch + 1) % args.validate_freq == 0:
+            is_best_for_now = False
+            print('------ validate on data: VALIDATE ------')
+            error_metrics = \
+                validate(model, valid_loader, args.device, args.norm_method, normalize_statistic,
+                         node_cnt, args.batch_size, args.window_size, args.horizon,
+                         result_file=result_file)
+            if best_validate_mae is None or best_validate_mae > error_metrics['mae']:
+                best_validate_mae = error_metrics['mae']
+                is_best_for_now = True
+                validate_score_non_decrease_count = 0
+            else:
+                validate_score_non_decrease_count += 1
+            # save model
+            if is_best_for_now:
+                save_model(model, result_file)
+        # early stop
+        if args.early_stop and validate_score_non_decrease_count >= args.early_stop_step:
+            break
 
-        minimum_mape = sys.float_info.max
+    return error_metrics, normalize_statistic, correlation_result, percentile
 
-        for i in range(epoch):
-            start_time = time.time()
-            for j, x_batch in enumerate(
-                    gen_batch(inputs.get_data('train'), batch_size, dynamic_batch=True, shuffle=True)):
-                summary, _ = sess.run([merged, train_op], feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
-                writer.add_summary(summary, i * epoch_step + j)
-                if j % 50 == 0:
-                    loss_value = \
-                        sess.run([train_loss, copy_loss],
-                                 feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
-                    print(f'Epoch {i:2d}, Step {j:3d}: [{loss_value[0]:.3f}, {loss_value[1]:.3f}]')
-            print(f'Epoch {i:2d} Training Time {time.time() - start_time:.3f}s')
-
-            # e_value_1 = sess.run([e_value], feed_dict={x: x_batch[:, 0:n_his + 1, :, :], keep_prob: 1.0})
-
-            # pd.DataFrame(e_value_1).to_csv("e_value" + str(i) + ".csv")
-            if not os.path.exists(model_dir):
-                os.makedirs(model_dir)
-            if (i + 1) % args.save == 0:
-                start_time = time.time()
-                min_va_val, min_val = \
-                    model_inference(sess, pred, inputs, batch_size, n_his, n_pred, step_idx, min_va_val, min_val)
-
-                for ix in tmp_idx:
-                    va, te = min_va_val[ix - 2:ix + 1], min_val[ix - 2:ix + 1]
-                    print(f'Time Step {ix + 1}: '
-                          f'MAPE {va[0]:7.3%}, {te[0]:7.3%}; '
-                          f'MAE  {va[1]:4.3f}, {te[1]:4.3f}; '
-                          f'RMSE {va[2]:6.3f}, {te[2]:6.3f}.')
-                print(f'Epoch {i:2d} Inference Time {time.time() - start_time:.3f}s')
-
-                model_save(sess, global_steps, 'StemGNN', model_dir)
-
-                if va[0] < minimum_mape:
-                    minimum_mape = va[0]
-                    best_model_dir_name = pjoin(model_dir, 'best')
-                    if not os.path.exists(best_model_dir_name):
-                        os.makedirs(best_model_dir_name)
-                    model_save(sess, global_steps, 'StemGNN', best_model_dir_name)
-
-        writer.close()
-    print('Training model finished!')

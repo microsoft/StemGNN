@@ -1,4 +1,3 @@
-from data_loader.data_utils import gen_batch
 from utils.math_utils import evaluation
 from os.path import join as pjoin
 
@@ -7,7 +6,6 @@ import numpy as np
 import time
 import pandas as pd
 
-tf.disable_eager_execution()
 
 
 def z_score(x, mean, std):
