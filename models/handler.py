@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 
 from data_loader.forecast_dataloader import ForecastDataset, de_normalized
@@ -10,6 +11,13 @@ import time
 import os
 
 
+def logarithm(v):
+    return np.sign(v) * np.log(np.abs(v) + 1)
+
+
+def reverse_logarithm(v):
+    return np.sign(v) * (np.exp(np.abs(v)) - 1)
+
 
 def save_model(model, model_dir, epoch=None):
     if model_dir is None:
@@ -21,10 +29,12 @@ def save_model(model, model_dir, epoch=None):
     with open(file_name, 'wb') as f:
         torch.save(model, f)
 
-def _do_restore_model(model_dir):
+
+def load_model(model_dir, epoch=None):
     if not model_dir:
         return
-    file_name = os.path.join(model_dir, '_stemgnn.pt')
+    epoch = str(epoch) if epoch else ''
+    file_name = os.path.join(model_dir, epoch + '_stemgnn.pt')
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
     if not os.path.exists(file_name):
@@ -41,9 +51,7 @@ def evaluate(target, forecast, axis=None):
     return mape, mae, rmse
 
 
-
-def inference(model, dataloader, device, node_cnt,
-              history_length, forecast_length):
+def inference(model, dataloader, device, node_cnt, window_size, horizon):
     forecast_set = []
     target_set = []
     model.eval()
@@ -52,26 +60,26 @@ def inference(model, dataloader, device, node_cnt,
             inputs = inputs.to(device)
             target = target.to(device)
             step = 0
-            forecast_steps = np.zeros([inputs.size()[0], forecast_length, node_cnt], dtype=np.float)
-            while step < forecast_length:
+            forecast_steps = np.zeros([inputs.size()[0], horizon, node_cnt], dtype=np.float)
+            while step < horizon:
                 forecast_result, a = model(inputs)
                 len_model_output = forecast_result.size()[1]
                 if len_model_output == 0:
                     raise Exception('Get blank inference result')
-                inputs[:, :history_length - len_model_output, :] = inputs[:, len_model_output:history_length,
+                inputs[:, :window_size - len_model_output, :] = inputs[:, len_model_output:window_size,
                                                                    :].clone()
-                inputs[:, history_length - len_model_output:, :] = forecast_result.clone()
-                forecast_steps[:, step:min(forecast_length - step, len_model_output) + step, :] = \
-                    forecast_result[:, :min(forecast_length - step, len_model_output), :].detach().cpu().numpy()
-                step += min(forecast_length - step, len_model_output)
+                inputs[:, window_size - len_model_output:, :] = forecast_result.clone()
+                forecast_steps[:, step:min(horizon - step, len_model_output) + step, :] = \
+                    forecast_result[:, :min(horizon - step, len_model_output), :].detach().cpu().numpy()
+                step += min(horizon - step, len_model_output)
             forecast_set.append(forecast_steps)
             target_set.append(target.detach().cpu().numpy())
     return np.concatenate(forecast_set, axis=0), np.concatenate(target_set, axis=0)
 
 
 def validate(model, dataloader, device, normalize_method, statistic,
-             node_cnt, batch_size, window_size, horizon,
-             result_file=None):
+             node_cnt, window_size, horizon,
+             result_file=None, logarithm=False):
     start = datetime.now()
     forecast_norm, target_norm = inference(model, dataloader, device,
                                            node_cnt, window_size, horizon)
@@ -80,10 +88,11 @@ def validate(model, dataloader, device, normalize_method, statistic,
         target = de_normalized(target_norm, normalize_method, statistic)
     else:
         forecast, target = forecast_norm, target_norm
+    if logarithm:
+        forecast, target = reverse_logarithm(forecast), reverse_logarithm(target)
     score = evaluate(target, forecast)
-    score_by_node = evaluate(target, forecast, axis=(0,1))
+    score_by_node = evaluate(target, forecast, axis=(0, 1))
     end = datetime.now()
-    print(f'{(end - start).total_seconds()} seconds')
 
     score_norm = evaluate(target_norm, forecast_norm)
     print(f'NORM: MAPE {score_norm[0]:7.9%}; MAE {score_norm[1]:7.9f}; RMSE {score_norm[2]:7.9f}.')
@@ -113,16 +122,28 @@ def train(train_data, valid_data, args, result_file):
         raise Exception('Cannot organize enough training data')
     if len(valid_data) == 0:
         raise Exception('Cannot organize enough validation data')
+
     if args.norm_method == 'z_score':
         train_mean = np.mean(train_data, axis=0)
         train_std = np.std(train_data, axis=0)
-        normalize_statistic = {"mean": train_mean, "std": train_std}
+        normalize_statistic = {"mean": train_mean.tolist(), "std": train_std.tolist()}
     elif args.norm_method == 'min_max':
         train_min = np.min(train_data, axis=0)
         train_max = np.max(train_data, axis=0)
         normalize_statistic = {"min": train_min, "max": train_max}
     else:
         normalize_statistic = None
+
+    if args.optimizer == 'RMSProp':
+        my_optim = torch.optim.RMSprop(params=model.parameters(), lr=args.lr, eps=1e-08)
+    else:
+        my_optim = torch.optim.Adam(params=model.parameters(), lr=args.lr, betas=(0.9, 0.999))
+    my_lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=my_optim, gamma=args.decay_rate)
+
+    # logarithm is suitable for data with heavy tails in a distribution
+    if args.logarithm:
+        train_data = logarithm(train_data)
+        valid_data = logarithm(valid_data)
     train_set = ForecastDataset(train_data, window_size=args.window_size, horizon=args.horizon,
                                 normalize_method=args.norm_method, norm_statistic=normalize_statistic)
     valid_set = ForecastDataset(valid_data, window_size=args.window_size, horizon=args.horizon,
@@ -132,11 +153,6 @@ def train(train_data, valid_data, args, result_file):
     valid_loader = torch_data.DataLoader(valid_set, batch_size=args.batch_size, shuffle=False, num_workers=0)
 
     forecast_loss = nn.MSELoss(reduction='mean').to(args.device)
-    if args.optimizer == 'RMSProp':
-        my_optim = torch.optim.RMSprop(params=model.parameters(), lr=args.lr, eps=1e-08)
-    else:
-        my_optim = torch.optim.Adam(params=model.parameters(), lr=args.lr, betas=(0.9, 0.999))
-    my_lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=my_optim, gamma=args.decay_rate)
 
     total_params = 0
     for name, parameter in model.named_parameters():
@@ -145,10 +161,9 @@ def train(train_data, valid_data, args, result_file):
         total_params += param
     print(f"Total Trainable Params: {total_params}")
 
-    best_validate_mae = None
+    best_validate_mae = np.inf
     validate_score_non_decrease_count = 0
-    correlation_result = None
-    error_metrics = {}
+    performance_metrics = {}
     for epoch in range(args.epoch):
         epoch_start_time = time.time()
         model.train()
@@ -167,17 +182,17 @@ def train(train_data, valid_data, args, result_file):
         print('| end of epoch {:3d} | time: {:5.2f}s | train_total_loss {:5.4f}'.format(epoch, (
                 time.time() - epoch_start_time), loss_total / cnt))
         save_model(model, result_file, epoch)
-        if epoch % args.exponential_decay_step == 0 and epoch > 0:
+        if (epoch+1) % args.exponential_decay_step == 0:
             my_lr_scheduler.step()
         if (epoch + 1) % args.validate_freq == 0:
             is_best_for_now = False
             print('------ validate on data: VALIDATE ------')
-            error_metrics = \
+            performance_metrics = \
                 validate(model, valid_loader, args.device, args.norm_method, normalize_statistic,
-                         node_cnt, args.batch_size, args.window_size, args.horizon,
-                         result_file=result_file)
-            if best_validate_mae is None or best_validate_mae > error_metrics['mae']:
-                best_validate_mae = error_metrics['mae']
+                         node_cnt, args.window_size, args.horizon,
+                         result_file=result_file, logarithm=args.logarithm)
+            if best_validate_mae > performance_metrics['mae']:
+                best_validate_mae = performance_metrics['mae']
                 is_best_for_now = True
                 validate_score_non_decrease_count = 0
             else:
@@ -188,16 +203,20 @@ def train(train_data, valid_data, args, result_file):
         # early stop
         if args.early_stop and validate_score_non_decrease_count >= args.early_stop_step:
             break
+    with open(os.path.join(result_file, 'norm_stat.json'),'w') as f:
+        json.dump(normalize_statistic,f)
+    return performance_metrics, normalize_statistic
 
-    return error_metrics, normalize_statistic
 
-def test(test_data, args, result_train_file, result_test_file, normalize_statistic):
-    model = _do_restore_model(result_train_file)
+def test(test_data, args, result_train_file, result_test_file):
+    with open(os.path.join(result_train_file, 'norm_stat.json'),'r') as f:
+        normalize_statistic = json.load(f)
+    model = load_model(result_train_file)
     node_cnt = test_data.shape[1]
     test_set = ForecastDataset(test_data, window_size=args.window_size, horizon=args.horizon,
-                                    normalize_method=args.norm_method, norm_statistic=normalize_statistic)
+                               normalize_method=args.norm_method, norm_statistic=normalize_statistic)
     test_loader = torch_data.DataLoader(test_set, batch_size=args.batch_size, drop_last=False,
-                                             shuffle=False, num_workers=0)
-    result = validate(model, test_loader, args.device, args.norm_method, normalize_statistic,
-                         node_cnt, args.batch_size, args.window_size, args.horizon,
-                         result_file=result_test_file)
+                                        shuffle=False, num_workers=0)
+    validate(model, test_loader, args.device, args.norm_method, normalize_statistic,
+                      node_cnt, args.window_size, args.horizon,
+                      result_file=result_test_file)
