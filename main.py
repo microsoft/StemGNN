@@ -1,8 +1,7 @@
 import os
-import random
 import torch
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+num_gpus = os.environ['CUDA_VISIBLE_DEVICES'].split(',').__len__()
+os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(f'{i}' for i in range(num_gpus))
 from datetime import datetime
 from utils.math_graph import *
 from models.handler import train, test

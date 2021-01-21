@@ -118,6 +118,7 @@ def validate(model, dataloader, device, normalize_method, statistic,
 def train(train_data, valid_data, args, result_file):
     node_cnt = train_data.shape[1]
     model = Model(node_cnt, args.stack_count, args.window_size, args.multi_layer, horizon=args.horizon)
+    model.to(args.device)
     if len(train_data) == 0:
         raise Exception('Cannot organize enough training data')
     if len(valid_data) == 0:
