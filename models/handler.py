@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-from data_loader.forecast_dataloader import ForecastDataset, de_normalized
+from data_loader.forecast_dataloader import ForecastDataset, de_normalized, normalized
 from models.base_model import Model
 import torch
 import torch.nn as nn
@@ -9,14 +9,6 @@ import torch.utils.data as torch_data
 import numpy as np
 import time
 import os
-
-
-def logarithm(v):
-    return np.sign(v) * np.log(np.abs(v) + 1)
-
-
-def reverse_logarithm(v):
-    return np.sign(v) * (np.exp(np.abs(v)) - 1)
 
 
 def save_model(model, model_dir, epoch=None):
@@ -67,7 +59,7 @@ def inference(model, dataloader, device, node_cnt, window_size, horizon):
                 if len_model_output == 0:
                     raise Exception('Get blank inference result')
                 inputs[:, :window_size - len_model_output, :] = inputs[:, len_model_output:window_size,
-                                                                   :].clone()
+                                                                :].clone()
                 inputs[:, window_size - len_model_output:, :] = forecast_result.clone()
                 forecast_steps[:, step:min(horizon - step, len_model_output) + step, :] = \
                     forecast_result[:, :min(horizon - step, len_model_output), :].detach().cpu().numpy()
@@ -79,7 +71,7 @@ def inference(model, dataloader, device, node_cnt, window_size, horizon):
 
 def validate(model, dataloader, device, normalize_method, statistic,
              node_cnt, window_size, horizon,
-             result_file=None, logarithm=False):
+             result_file=None):
     start = datetime.now()
     forecast_norm, target_norm = inference(model, dataloader, device,
                                            node_cnt, window_size, horizon)
@@ -88,8 +80,6 @@ def validate(model, dataloader, device, normalize_method, statistic,
         target = de_normalized(target_norm, normalize_method, statistic)
     else:
         forecast, target = forecast_norm, target_norm
-    if logarithm:
-        forecast, target = reverse_logarithm(forecast), reverse_logarithm(target)
     score = evaluate(target, forecast)
     score_by_node = evaluate(target, forecast, axis=(0, 1))
     end = datetime.now()
@@ -141,15 +131,11 @@ def train(train_data, valid_data, args, result_file):
         my_optim = torch.optim.Adam(params=model.parameters(), lr=args.lr, betas=(0.9, 0.999))
     my_lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=my_optim, gamma=args.decay_rate)
 
-    # logarithm is suitable for data with heavy tails in a distribution
-    if args.logarithm:
-        train_data = logarithm(train_data)
-        valid_data = logarithm(valid_data)
     train_set = ForecastDataset(train_data, window_size=args.window_size, horizon=args.horizon,
                                 normalize_method=args.norm_method, norm_statistic=normalize_statistic)
     valid_set = ForecastDataset(valid_data, window_size=args.window_size, horizon=args.horizon,
                                 normalize_method=args.norm_method, norm_statistic=normalize_statistic)
-    train_loader = torch_data.DataLoader(train_set, batch_size=args.batch_size, drop_last=False, shuffle=True,
+    train_loader = torch_data.DataLoader(train_set, batch_size=args.batch_size, drop_last=False, shuffle=False,
                                          num_workers=0)
     valid_loader = torch_data.DataLoader(valid_set, batch_size=args.batch_size, shuffle=False, num_workers=0)
 
@@ -172,6 +158,8 @@ def train(train_data, valid_data, args, result_file):
         cnt = 0
         for i, (inputs, target) in enumerate(train_loader):
             inputs = inputs.to(args.device)
+            inputs, norm_statistic = normalized(inputs, 'z_score')
+            target, norm_statistic = normalized(inputs, 'z_score', norm_statistic)
             target = target.to(args.device)
             model.zero_grad()
             forecast, _ = model(inputs)
@@ -183,7 +171,7 @@ def train(train_data, valid_data, args, result_file):
         print('| end of epoch {:3d} | time: {:5.2f}s | train_total_loss {:5.4f}'.format(epoch, (
                 time.time() - epoch_start_time), loss_total / cnt))
         save_model(model, result_file, epoch)
-        if (epoch+1) % args.exponential_decay_step == 0:
+        if (epoch + 1) % args.exponential_decay_step == 0:
             my_lr_scheduler.step()
         if (epoch + 1) % args.validate_freq == 0:
             is_best_for_now = False
@@ -191,7 +179,7 @@ def train(train_data, valid_data, args, result_file):
             performance_metrics = \
                 validate(model, valid_loader, args.device, args.norm_method, normalize_statistic,
                          node_cnt, args.window_size, args.horizon,
-                         result_file=result_file, logarithm=args.logarithm)
+                         result_file=result_file)
             if best_validate_mae > performance_metrics['mae']:
                 best_validate_mae = performance_metrics['mae']
                 is_best_for_now = True
@@ -204,13 +192,13 @@ def train(train_data, valid_data, args, result_file):
         # early stop
         if args.early_stop and validate_score_non_decrease_count >= args.early_stop_step:
             break
-    with open(os.path.join(result_file, 'norm_stat.json'),'w') as f:
-        json.dump(normalize_statistic,f)
+    with open(os.path.join(result_file, 'norm_stat.json'), 'w') as f:
+        json.dump(normalize_statistic, f)
     return performance_metrics, normalize_statistic
 
 
 def test(test_data, args, result_train_file, result_test_file):
-    with open(os.path.join(result_train_file, 'norm_stat.json'),'r') as f:
+    with open(os.path.join(result_train_file, 'norm_stat.json'), 'r') as f:
         normalize_statistic = json.load(f)
     model = load_model(result_train_file)
     node_cnt = test_data.shape[1]
@@ -219,5 +207,5 @@ def test(test_data, args, result_train_file, result_test_file):
     test_loader = torch_data.DataLoader(test_set, batch_size=args.batch_size, drop_last=False,
                                         shuffle=False, num_workers=0)
     validate(model, test_loader, args.device, args.norm_method, normalize_statistic,
-                      node_cnt, args.window_size, args.horizon,
-                      result_file=result_test_file)
+             node_cnt, args.window_size, args.horizon,
+             result_file=result_test_file)

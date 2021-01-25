@@ -1,11 +1,11 @@
 import os
 import torch
-num_gpus = os.environ['CUDA_VISIBLE_DEVICES'].split(',').__len__()
-os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(f'{i}' for i in range(num_gpus))
+# num_gpus = os.environ['CUDA_VISIBLE_DEVICES'].split(',').__len__()
+# os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(f'{i}' for i in range(num_gpus))
 from datetime import datetime
-from utils.math_graph import *
 from models.handler import train, test
 import argparse
+import pandas as pd
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--window_size', type=int, default=12)
@@ -13,9 +13,9 @@ parser.add_argument('--horizon', type=int, default=3)
 parser.add_argument('--train_length', type=float, default=7)
 parser.add_argument('--valid_length', type=float, default=2)
 parser.add_argument('--test_length', type=float, default=100)
-parser.add_argument('--epoch', type=int, default=1)
+parser.add_argument('--epoch', type=int, default=100)
 parser.add_argument('--lr', type=float, default=1e-3)
-parser.add_argument('--dataset', type=str, default='PeMS07')
+parser.add_argument('--dataset', type=str, default='300_series')
 parser.add_argument('--train', type=bool, default=True)
 parser.add_argument('--evaluate', type=bool, default=True)
 parser.add_argument('--multi_layer', type=int, default=5)
@@ -28,9 +28,9 @@ parser.add_argument('--decay_rate', type=float, default=0.5)
 parser.add_argument('--dropout_rate', type=float, default=0.5)
 parser.add_argument('--leakyrelu_rate', type=int, default=0.2)
 parser.add_argument('--optimizer', type=str, default='RMSProp')
-parser.add_argument('--norm_method', type=str, default='z_score')
+parser.add_argument('--norm_method', type=str, default=None)
 parser.add_argument('--early_stop', type=bool, default=False)
-parser.add_argument('--logarithm', type=bool, default=True)
+parser.add_argument('--logarithm', type=bool, default=False)
 
 
 args = parser.parse_args()
