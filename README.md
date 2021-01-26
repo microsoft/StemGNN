@@ -43,7 +43,7 @@ Since complex data cleansing is needed on the above datasets provided in the url
 The training procedure and evaluation procedure are all included in the `main.py`. To train and evaluate on some dataset, run the following command:
 
 ```train & evaluate
-python main.py --train True --evaluate True --dataset <path to csv file> --output_dir <path to output directory> --n_route <number of nodes> --n_his <length of sliding window> --n_pred <predict horizon> --scalar z_score --train_length 6 --validate_length 2 --test_length 2
+python main.py --train True --evaluate True --dataset <name of csv file> --output_dir <path to output directory> --n_route <number of nodes> --window_size <length of sliding window> --horizon <predict horizon> --norm_method z_score --train_length 6 --validate_length 2 --test_length 2
 ```
 
 The detailed descriptions about the parameters are as following:
@@ -62,17 +62,17 @@ The detailed descriptions about the parameters are as following:
 | n_pred | predict horizon, default 3 |
 
 **Table 1** Configurations for all datasets
-| Dataset | train | evaluate | n_route | n_his | n_pred | scalar |
+| Dataset | train | evaluate | node_cnt | window_size | horizon | norm_method |
 | -----   | ---- | ---- |---- |---- |---- | --- |
-| PEMS03 | True | True |  358 | 12 | 12 | z_score |
-| PEMS04 | True | True |  307 | 12 | 12 | z_score |
-| PEMS08 | True | True |  170 | 12 | 12 | z_score |
+| PEMS03 | True | True |  358 | 12 | 3 | z_score |
+| PEMS04 | True | True |  307 | 12 | 3 | z_score |
+| PEMS08 | True | True |  170 | 12 | 3 | z_score |
 | METR-LA | True | True | 207 | 12 | 3 | z_score |
 | PEMS-BAY | True | True |  325 | 12 | 3 | z_score |
 | PEMS07 | True | True | 228 | 12 | 3 | z_score |
 | Solar | True | True |  137 | 12 | 3 | z_score |
-| Electricity | True | True | 321 | 12 | 3 | z_score |
-| ECG5000| True | True | 140 | 12 | 3 | min_max |
+| Electricity | True | True | 321 | 3 | 3 | z_score |
+| ECG5000| True | True | 140 | 12 | 3 | z_score |
 | COVID-19| True | True | 25 | 28 | 28 | z_score |
 
 ## Results
@@ -80,6 +80,7 @@ The detailed descriptions about the parameters are as following:
 Our model achieves the following performance on the 10 datasets:
 
 **Table 2** (predict horizon: 3 steps)
+
 | Dataset | MAE  | RMSE | MAPE(%) |
 | -----   | ---- | ---- | ---- |
 | METR-LA | 2.56 | 5.06 | 6.46 |
@@ -90,6 +91,7 @@ Our model achieves the following performance on the 10 datasets:
 | ECG5000 | 0.05 | 0.07 | 10.58 |
 
 **Table 3** (predict horizon: 12 steps)
+
 | Dataset | MAE  | RMSE | MAPE |
 | -----   | ---- | ---- | ---- |
 | PEMS03 | 14.32 | 21.64 | 16.24 |
@@ -97,6 +99,7 @@ Our model achieves the following performance on the 10 datasets:
 | PEMS08 | 15.83 | 24.93 | 9.26 |
 
 **Table 4** (predict horizon: 28 steps)
+
 | Dataset | MAE  | RMSE | MAPE |
 | -----   | ---- | ---- | ---- |
 | COVID-19 | 662.24 | 1023.19| 19.3|

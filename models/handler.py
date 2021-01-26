@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-from data_loader.forecast_dataloader import ForecastDataset, de_normalized, normalized
+from data_loader.forecast_dataloader import ForecastDataset, de_normalized
 from models.base_model import Model
 import torch
 import torch.nn as nn
@@ -9,6 +9,7 @@ import torch.utils.data as torch_data
 import numpy as np
 import time
 import os
+
 
 
 def save_model(model, model_dir, epoch=None):
@@ -37,7 +38,7 @@ def load_model(model_dir, epoch=None):
 
 
 def evaluate(target, forecast, axis=None):
-    mape = np.mean(np.abs(target - forecast) / (np.abs(target) + 1e-5), axis).astype(np.float64)
+    mape = np.mean(np.abs(target - forecast) / (np.abs(target) + 1e-2), axis).astype(np.float64)
     mae = np.mean(np.abs(target - forecast), axis).astype(np.float64)
     rmse = np.sqrt(np.mean((target - forecast) ** 2, axis)).astype(np.float64)
     return mape, mae, rmse
@@ -59,7 +60,7 @@ def inference(model, dataloader, device, node_cnt, window_size, horizon):
                 if len_model_output == 0:
                     raise Exception('Get blank inference result')
                 inputs[:, :window_size - len_model_output, :] = inputs[:, len_model_output:window_size,
-                                                                :].clone()
+                                                                   :].clone()
                 inputs[:, window_size - len_model_output:, :] = forecast_result.clone()
                 forecast_steps[:, step:min(horizon - step, len_model_output) + step, :] = \
                     forecast_result[:, :min(horizon - step, len_model_output), :].detach().cpu().numpy()
@@ -135,7 +136,7 @@ def train(train_data, valid_data, args, result_file):
                                 normalize_method=args.norm_method, norm_statistic=normalize_statistic)
     valid_set = ForecastDataset(valid_data, window_size=args.window_size, horizon=args.horizon,
                                 normalize_method=args.norm_method, norm_statistic=normalize_statistic)
-    train_loader = torch_data.DataLoader(train_set, batch_size=args.batch_size, drop_last=False, shuffle=False,
+    train_loader = torch_data.DataLoader(train_set, batch_size=args.batch_size, drop_last=False, shuffle=True,
                                          num_workers=0)
     valid_loader = torch_data.DataLoader(valid_set, batch_size=args.batch_size, shuffle=False, num_workers=0)
 
@@ -158,8 +159,6 @@ def train(train_data, valid_data, args, result_file):
         cnt = 0
         for i, (inputs, target) in enumerate(train_loader):
             inputs = inputs.to(args.device)
-            inputs, norm_statistic = normalized(inputs, 'z_score')
-            target, norm_statistic = normalized(inputs, 'z_score', norm_statistic)
             target = target.to(args.device)
             model.zero_grad()
             forecast, _ = model(inputs)
@@ -171,7 +170,7 @@ def train(train_data, valid_data, args, result_file):
         print('| end of epoch {:3d} | time: {:5.2f}s | train_total_loss {:5.4f}'.format(epoch, (
                 time.time() - epoch_start_time), loss_total / cnt))
         save_model(model, result_file, epoch)
-        if (epoch + 1) % args.exponential_decay_step == 0:
+        if (epoch+1) % args.exponential_decay_step == 0:
             my_lr_scheduler.step()
         if (epoch + 1) % args.validate_freq == 0:
             is_best_for_now = False
@@ -192,13 +191,13 @@ def train(train_data, valid_data, args, result_file):
         # early stop
         if args.early_stop and validate_score_non_decrease_count >= args.early_stop_step:
             break
-    with open(os.path.join(result_file, 'norm_stat.json'), 'w') as f:
-        json.dump(normalize_statistic, f)
+    with open(os.path.join(result_file, 'norm_stat.json'),'w') as f:
+        json.dump(normalize_statistic,f)
     return performance_metrics, normalize_statistic
 
 
 def test(test_data, args, result_train_file, result_test_file):
-    with open(os.path.join(result_train_file, 'norm_stat.json'), 'r') as f:
+    with open(os.path.join(result_train_file, 'norm_stat.json'),'r') as f:
         normalize_statistic = json.load(f)
     model = load_model(result_train_file)
     node_cnt = test_data.shape[1]
@@ -207,5 +206,5 @@ def test(test_data, args, result_train_file, result_test_file):
     test_loader = torch_data.DataLoader(test_set, batch_size=args.batch_size, drop_last=False,
                                         shuffle=False, num_workers=0)
     validate(model, test_loader, args.device, args.norm_method, normalize_statistic,
-             node_cnt, args.window_size, args.horizon,
-             result_file=result_test_file)
+                      node_cnt, args.window_size, args.horizon,
+                      result_file=result_test_file)
