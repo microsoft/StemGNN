@@ -1,118 +1,179 @@
-from models.layers import *
-from os.path import join as pjoin
-import tensorflow as tf
-import keras
-from keras_self_attention import SeqSelfAttention, SeqWeightedAttention
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 
-def attention_conv_layer(x):
-    '''
-    Temporal convolution layer.
-    :param x: tensor, [batch_size, time_step, n_route, c_in].
-    :param Kt: int, kernel size of temporal convolution.
-    :param c_in: int, size of input channel.
-    :param c_out: int, size of output channel.
-    :param act_func: str, activation function.
-    :return: tensor, [batch_size, time_step-Kt+1, n_route, c_out].
-    '''
-    _, T, n, s = x.get_shape().as_list()
+class GLU(nn.Module):
+    def __init__(self, input_channel, output_channel):
+        super(GLU, self).__init__()
+        self.linear_left = nn.Linear(input_channel, output_channel)
+        self.linear_right = nn.Linear(input_channel, output_channel)
 
-    x_input = x
-
-    # keep the original input for residual connection.
-
-    # x_input = x_input[:, Kt - 1:T, :, :]
-
-    _, time_step_temp, route_temp, channel_temp = x_input.get_shape().as_list()
-
-    x_input = tf.transpose(x, [0, 2, 3, 1])
-    x_input = tf.reshape(x_input, [-1, route_temp * channel_temp, time_step_temp])
-    # _, time_step_temp, route_temp, channel_temp = x_input.get_shape().as_list()
-    with tf.device('/cpu:0'):
-        cell = tf.keras.layers.GRUCell(route_temp)  # ,return_sequences=True)
-        # x_input = tf.reshape(x_input, [-1, time_step_temp * route_temp, s])
-        outputs, mid_state = tf.compat.v1.nn.dynamic_rnn(cell, x_input, dtype=tf.float32)
-        x, _ = SeqSelfAttention(32, return_attention=True)(outputs)
-
-    # x=tf.contrib.layers.l1_regularizer(0.5)(x)
-    weight = tf.reshape(x, [-1, n, n])
-
-    weight = tf.reduce_mean(weight, axis=0)
-    weight = tf.nn.sigmoid(weight)
-
-    D = tf.reduce_sum(weight, axis=1)
-    # D_2 = tf.expand_dims(tf.sqrt(D),-1)
-    D_2 = tf.matrix_diag(tf.sqrt(D))
-    # D_2 = tf.matrix_diag(tf.pow(tf.sqrt(D), -1, name=None))
-    L = tf.matmul(weight, D_2)
-    L = tf.matmul(D_2, L)
-    v1 = tf.Variable(tf.eye(n), name="v1")
-    # L = v1 - L
-    L = L
-    # L=tf.nn.relu(L)
-
-    try:
-        e, v = tf.self_adjoint_eig(L)
-    except:
-        e, v = tf.self_adjoint_eig(weight)
-
-    e = tf.nn.relu(e)
-    v = tf.nn.relu(v)
-
-    return e, v  # outputs
+    def forward(self, x):
+        return torch.mul(self.linear_left(x), torch.sigmoid(self.linear_right(x)))
 
 
-def build_model(inputs, n_his, Ks, Kt, blocks, keep_prob):
-    '''
-    Build the base model.
-    :param inputs: placeholder.
-    :param n_his: int, size of historical records for training.
-    :param Ks: int, kernel size of spatial convolution.
-    :param Kt: int, kernel size of temporal convolution.
-    :param blocks: list, channel configs of st_conv blocks.
-    :param keep_prob: placeholder.
-    '''
-    x = inputs[:, 0:n_his, :, :]
+class StockBlockLayer(nn.Module):
+    def __init__(self, time_step, unit, multi_layer, stack_cnt=0):
+        super(StockBlockLayer, self).__init__()
+        self.time_step = time_step
+        self.unit = unit
+        self.stack_cnt = stack_cnt
+        self.multi = multi_layer
+        self.weight = nn.Parameter(
+            torch.Tensor(1, 3 + 1, 1, self.time_step * self.multi,
+                         self.multi * self.time_step))  # [K+1, 1, in_c, out_c]
+        nn.init.xavier_normal_(self.weight)
+        self.forecast = nn.Linear(self.time_step * self.multi, self.time_step * self.multi)
+        self.forecast_result = nn.Linear(self.time_step * self.multi, self.time_step)
+        if self.stack_cnt == 0:
+            self.backcast = nn.Linear(self.time_step * self.multi, self.time_step)
+        self.backcast_short_cut = nn.Linear(self.time_step, self.time_step)
+        self.relu = nn.ReLU()
+        self.GLUs = nn.ModuleList()
+        self.output_channel = 4 * self.multi
+        for i in range(3):
+            if i == 0:
+                self.GLUs.append(GLU(self.time_step * 4, self.time_step * self.output_channel))
+                self.GLUs.append(GLU(self.time_step * 4, self.time_step * self.output_channel))
+            elif i == 1:
+                self.GLUs.append(GLU(self.time_step * self.output_channel, self.time_step * self.output_channel))
+                self.GLUs.append(GLU(self.time_step * self.output_channel, self.time_step * self.output_channel))
+            else:
+                self.GLUs.append(GLU(self.time_step * self.output_channel, self.time_step * self.output_channel))
+                self.GLUs.append(GLU(self.time_step * self.output_channel, self.time_step * self.output_channel))
 
-    # Ko>0: kernel size of temporal convolution in the output layer.
-    e, v = attention_conv_layer(x)
+    def spe_seq_cell(self, input):
+        batch_size, k, input_channel, node_cnt, time_step = input.size()
+        input = input.view(batch_size, -1, node_cnt, time_step)
+        ffted = torch.rfft(input, 1, onesided=False)
+        real = ffted[..., 0].permute(0, 2, 1, 3).contiguous().reshape(batch_size, node_cnt, -1)
+        img = ffted[..., 1].permute(0, 2, 1, 3).contiguous().reshape(batch_size, node_cnt, -1)
+        for i in range(3):
+            real = self.GLUs[i * 2](real)
+            img = self.GLUs[2 * i + 1](img)
+        real = real.reshape(batch_size, node_cnt, 4, -1).permute(0, 2, 1, 3).contiguous()
+        img = img.reshape(batch_size, node_cnt, 4, -1).permute(0, 2, 1, 3).contiguous()
+        time_step_as_inner = torch.cat([real.unsqueeze(-1), img.unsqueeze(-1)], dim=-1)
+        iffted = torch.irfft(time_step_as_inner, 1, onesided=False)
+        return iffted
 
-    Ko = n_his
-    # ST-Block
-    flag = 0
-
-    for i, channels in enumerate(blocks):
-        if flag == 0:
-            x_back = x
-            l1 = 0
-        x, x_back, l1 = stemGNN_block(x, Ks, Kt, channels, i, keep_prob, e, v, l1, flag, act_func='GLU',
-                                      back_forecast=x_back)
-        flag = 1
-        Ko -= 2 * (Ks - 1)
-
-    # Output Layer
-    if Ko > 1:
-        y = output_layer(x, Ko, 'output_layer')
-    else:
-        raise ValueError(f'ERROR: kernel size Ko must be greater than 1, but received "{Ko}".')
-
-    tf.add_to_collection(name='copy_loss',
-                         value=tf.nn.l2_loss(inputs[:, n_his - 1:n_his, :, :] - inputs[:, n_his:n_his + 1, :, :]))
-    train_loss = tf.nn.l2_loss(y - inputs[:, n_his:n_his + 1, :, :]) + l1
-    single_pred = y[:, 0, :, :]
-    tf.add_to_collection(name='y_pred', value=single_pred)
-    return train_loss, single_pred, e
+    def forward(self, x, mul_L):
+        mul_L = mul_L.unsqueeze(1)
+        x = x.unsqueeze(1)
+        gfted = torch.matmul(mul_L, x)
+        gconv_input = self.spe_seq_cell(gfted).unsqueeze(2)
+        igfted = torch.matmul(gconv_input, self.weight)
+        igfted = torch.sum(igfted, dim=1)
+        forecast_source = torch.sigmoid(self.forecast(igfted).squeeze(1))
+        forecast = self.forecast_result(forecast_source)
+        if self.stack_cnt == 0:
+            backcast_short = self.backcast_short_cut(x).squeeze(1)
+            backcast_source = torch.sigmoid(self.backcast(igfted) - backcast_short)
+        else:
+            backcast_source = None
+        return forecast, backcast_source
 
 
-def model_save(sess, global_steps, model_name, save_path):
-    '''
-    Save the checkpoint of trained model.
-    :param sess: tf.Session().
-    :param global_steps: tensor, record the global step of training in epochs.
-    :param model_name: str, the name of saved model.
-    :param save_path: str, the path of saved model.
-    :return:
-    '''
-    saver = tf.train.Saver(max_to_keep=3)
-    prefix_path = saver.save(sess, pjoin(save_path, model_name), global_step=global_steps)
-    print(f'<< Saving model to {prefix_path} ...')
+class Model(nn.Module):
+    def __init__(self, units, stack_cnt, time_step, multi_layer, horizon=1, dropout_rate=0.5, leaky_rate=0.2,
+                 device='cpu'):
+        super(Model, self).__init__()
+        self.unit = units
+        self.stack_cnt = stack_cnt
+        self.unit = units
+        self.alpha = leaky_rate
+        self.time_step = time_step
+        self.horizon = horizon
+        self.weight_key = nn.Parameter(torch.zeros(size=(self.unit, 1)))
+        nn.init.xavier_uniform_(self.weight_key.data, gain=1.414)
+        self.weight_query = nn.Parameter(torch.zeros(size=(self.unit, 1)))
+        nn.init.xavier_uniform_(self.weight_query.data, gain=1.414)
+        self.GRU = nn.GRU(self.time_step, self.unit)
+        self.multi_layer = multi_layer
+        self.stock_block = nn.ModuleList()
+        self.stock_block.extend(
+            [StockBlockLayer(self.time_step, self.unit, self.multi_layer, stack_cnt=i) for i in range(self.stack_cnt)])
+        self.fc = nn.Sequential(
+            nn.Linear(int(self.time_step), int(self.time_step)),
+            nn.LeakyReLU(),
+            nn.Linear(int(self.time_step), self.horizon),
+        )
+        self.leakyrelu = nn.LeakyReLU(self.alpha)
+        self.dropout = nn.Dropout(p=dropout_rate)
+        self.to(device)
+
+    def get_laplacian(self, graph, normalize):
+        """
+        return the laplacian of the graph.
+        :param graph: the graph structure without self loop, [N, N].
+        :param normalize: whether to used the normalized laplacian.
+        :return: graph laplacian.
+        """
+        if normalize:
+            D = torch.diag(torch.sum(graph, dim=-1) ** (-1 / 2))
+            L = torch.eye(graph.size(0), device=graph.device, dtype=graph.dtype) - torch.mm(torch.mm(D, graph), D)
+        else:
+            D = torch.diag(torch.sum(graph, dim=-1))
+            L = D - graph
+        return L
+
+    def cheb_polynomial(self, laplacian):
+        """
+        Compute the Chebyshev Polynomial, according to the graph laplacian.
+        :param laplacian: the graph laplacian, [N, N].
+        :return: the multi order Chebyshev laplacian, [K, N, N].
+        """
+        N = laplacian.size(0)  # [N, N]
+        laplacian = laplacian.unsqueeze(0)
+        first_laplacian = torch.zeros([1, N, N], device=laplacian.device, dtype=torch.float)
+        second_laplacian = laplacian
+        third_laplacian = (2 * torch.matmul(laplacian, second_laplacian)) - first_laplacian
+        forth_laplacian = 2 * torch.matmul(laplacian, third_laplacian) - second_laplacian
+        multi_order_laplacian = torch.cat([first_laplacian, second_laplacian, third_laplacian, forth_laplacian], dim=0)
+        return multi_order_laplacian
+
+    def latent_correlation_layer(self, x):
+        input, _ = self.GRU(x.permute(2, 0, 1).contiguous())
+        input = input.permute(1, 0, 2).contiguous()
+        attention = self.self_graph_attention(input)
+        attention = torch.mean(attention, dim=0)
+        degree = torch.sum(attention, dim=1)
+        # laplacian is sym or not
+        attention = 0.5 * (attention + attention.T)
+        degree_l = torch.diag(degree)
+        diagonal_degree_hat = torch.diag(1 / (torch.sqrt(degree) + 1e-7))
+        laplacian = torch.matmul(diagonal_degree_hat,
+                                 torch.matmul(degree_l - attention, diagonal_degree_hat))
+        mul_L = self.cheb_polynomial(laplacian)
+        return mul_L, attention
+
+    def self_graph_attention(self, input):
+        input = input.permute(0, 2, 1).contiguous()
+        bat, N, fea = input.size()
+        key = torch.matmul(input, self.weight_key)
+        query = torch.matmul(input, self.weight_query)
+        data = key.repeat(1, 1, N).view(bat, N * N, 1) + query.repeat(1, N, 1)
+        data = data.squeeze(2)
+        data = data.view(bat, N, -1)
+        data = self.leakyrelu(data)
+        attention = F.softmax(data, dim=2)
+        attention = self.dropout(attention)
+        return attention
+
+    def graph_fft(self, input, eigenvectors):
+        return torch.matmul(eigenvectors, input)
+
+    def forward(self, x):
+        mul_L, attention = self.latent_correlation_layer(x)
+        X = x.unsqueeze(1).permute(0, 1, 3, 2).contiguous()
+        result = []
+        for stack_i in range(self.stack_cnt):
+            forecast, X = self.stock_block[stack_i](X, mul_L)
+            result.append(forecast)
+        forecast = result[0] + result[1]
+        forecast = self.fc(forecast)
+        if forecast.size()[-1] == 1:
+            return forecast.unsqueeze(1).squeeze(-1), attention
+        else:
+            return forecast.permute(0, 2, 1).contiguous(), attention

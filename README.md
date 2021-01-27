@@ -43,36 +43,40 @@ Since complex data cleansing is needed on the above datasets provided in the url
 The training procedure and evaluation procedure are all included in the `main.py`. To train and evaluate on some dataset, run the following command:
 
 ```train & evaluate
-python main.py --train True --evaluate True --dataset <path to csv file> --output_dir <path to output directory> --n_route <number of nodes> --n_his <length of sliding window> --n_pred <predict horizon> --scalar z_score --train_length 6 --validate_length 2 --test_length 2
+python main.py --train True --evaluate True --dataset <name of csv file> --output_dir <path to output directory> --n_route <number of nodes> --window_size <length of sliding window> --horizon <predict horizon> --norm_method z_score --train_length 7 --validate_length 2 --test_length 1
 ```
 
 The detailed descriptions about the parameters are as following:
+
 | Parameter name | Description of parameter |
 | --- | --- |
 | train | whether to enable training, default True |
 | evaluate | whether to enable evaluation, default True |
-| dataset | path to the input csv file |
-| output_dir | output directory, will store models and tensorboard information in this directory, and evaluation restores model from this directory |
-| scalar | method to normalize, 'z_score' or 'min_max' |
-| train_length | length of training data, default 6 |
+| dataset | file name of input csv |
+| window_size | length of sliding window, default 12 |
+| horizon | predict horizon, default 3 |
+| train_length | length of training data, default 7 |
 | validate_length | length of validation data, default 2 |
-| test_length | length of testing data, default 2 |
-| n_route | number of time series, i.e. number of nodes |
-| n_his | length of sliding window, default 12 |
-| n_pred | predict horizon, default 3 |
+| test_length | length of testing data, default 1 |
+| epoch | epoch size during training |
+| lr | learning rate |
+| multi_layer | hyper parameter of STemGNN which controls the parameter number of hidden layers, default 5 |
+| device | device that the code works on, 'cpu' or 'cuda:x' | 
+| validate_freq | frequency of validation |
+| batch_size | batch size |
+| norm_method | method to normalize, 'z_score' or 'min_max' |
+| early_stop | whether to enable early stop, default False |
+
 
 **Table 1** Configurations for all datasets
-| Dataset | train | evaluate | n_route | n_his | n_pred | scalar |
+| Dataset | train | evaluate | node_cnt | window_size | horizon | norm_method |
 | -----   | ---- | ---- |---- |---- |---- | --- |
-| PEMS03 | True | True |  358 | 12 | 12 | z_score |
-| PEMS04 | True | True |  307 | 12 | 12 | z_score |
-| PEMS08 | True | True |  170 | 12 | 12 | z_score |
 | METR-LA | True | True | 207 | 12 | 3 | z_score |
 | PEMS-BAY | True | True |  325 | 12 | 3 | z_score |
+| PEMS03 | True | True |  358 | 12 | 3 | z_score |
+| PEMS04 | True | True |  307 | 12 | 3 | z_score |
 | PEMS07 | True | True | 228 | 12 | 3 | z_score |
-| Solar | True | True |  137 | 12 | 3 | z_score |
-| Electricity | True | True | 321 | 12 | 3 | z_score |
-| ECG5000| True | True | 140 | 12 | 3 | min_max |
+| PEMS08 | True | True |  170 | 12 | 3 | z_score |
 | COVID-19| True | True | 25 | 28 | 28 | z_score |
 
 ## Results
@@ -80,23 +84,18 @@ The detailed descriptions about the parameters are as following:
 Our model achieves the following performance on the 10 datasets:
 
 **Table 2** (predict horizon: 3 steps)
+
 | Dataset | MAE  | RMSE | MAPE(%) |
 | -----   | ---- | ---- | ---- |
 | METR-LA | 2.56 | 5.06 | 6.46 |
 | PEMS-BAY | 1.23 | 2.48 | 2.63 |
-| PEMS07 | 2.14 | 4.01 | 5.01 |
-| Solar | 1.52 | 1.53 | 1.42 |
-| Electricity | 0.04 | 0.06 | 14.77 |
-| ECG5000 | 0.05 | 0.07 | 10.58 |
-
-**Table 3** (predict horizon: 12 steps)
-| Dataset | MAE  | RMSE | MAPE |
-| -----   | ---- | ---- | ---- |
 | PEMS03 | 14.32 | 21.64 | 16.24 |
 | PEMS04 | 20.24 | 32.15 | 10.03 |
+| PEMS07 | 2.14 | 4.01 | 5.01 |
 | PEMS08 | 15.83 | 24.93 | 9.26 |
 
-**Table 4** (predict horizon: 28 steps)
+**Table 3** (predict horizon: 28 steps)
+
 | Dataset | MAE  | RMSE | MAPE |
 | -----   | ---- | ---- | ---- |
 | COVID-19 | 662.24 | 1023.19| 19.3|
