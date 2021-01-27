@@ -102,7 +102,7 @@ def validate(model, dataloader, device, normalize_method, statistic,
 
 def train(train_data, valid_data, args, result_file):
     node_cnt = train_data.shape[1]
-    model = Model(node_cnt, args.stack_count, args.window_size, args.multi_layer, horizon=args.horizon)
+    model = Model(node_cnt, 2, args.window_size, args.multi_layer, horizon=args.horizon)
     model.to(args.device)
     if len(train_data) == 0:
         raise Exception('Cannot organize enough training data')
@@ -119,6 +119,9 @@ def train(train_data, valid_data, args, result_file):
         normalize_statistic = {"min": train_min, "max": train_max}
     else:
         normalize_statistic = None
+    if normalize_statistic is not None:
+        with open(os.path.join(result_file, 'norm_stat.json'), 'w') as f:
+            json.dump(normalize_statistic, f)
 
     if args.optimizer == 'RMSProp':
         my_optim = torch.optim.RMSprop(params=model.parameters(), lr=args.lr, eps=1e-08)
@@ -185,8 +188,6 @@ def train(train_data, valid_data, args, result_file):
         # early stop
         if args.early_stop and validate_score_non_decrease_count >= args.early_stop_step:
             break
-    with open(os.path.join(result_file, 'norm_stat.json'),'w') as f:
-        json.dump(normalize_statistic,f)
     return performance_metrics, normalize_statistic
 
 

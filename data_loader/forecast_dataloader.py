@@ -45,8 +45,8 @@ class ForecastDataset(torch_data.Dataset):
         self.horizon = horizon
         self.normalize_method = normalize_method
         self.norm_statistic = norm_statistic
-        df = pd.DataFrame(df).values
-        # df = df.fillna(method='ffill', limit=len(df)).fillna(method='bfill', limit=len(df)).values
+        df = pd.DataFrame(df)
+        df = df.fillna(method='ffill', limit=len(df)).fillna(method='bfill', limit=len(df)).values
         self.data = df
         self.df_length = len(df)
         self.x_end_idx = self.get_x_end_idx()

@@ -47,32 +47,36 @@ python main.py --train True --evaluate True --dataset <name of csv file> --outpu
 ```
 
 The detailed descriptions about the parameters are as following:
+
 | Parameter name | Description of parameter |
 | --- | --- |
 | train | whether to enable training, default True |
 | evaluate | whether to enable evaluation, default True |
-| dataset | path to the input csv file |
-| output_dir | output directory, will store models and tensorboard information in this directory, and evaluation restores model from this directory |
-| scalar | method to normalize, 'z_score' or 'min_max' |
-| train_length | length of training data, default 6 |
+| dataset | file name of input csv |
+| window_size | length of sliding window, default 12 |
+| horizon | predict horizon, default 3 |
+| train_length | length of training data, default 7 |
 | validate_length | length of validation data, default 2 |
-| test_length | length of testing data, default 2 |
-| n_route | number of time series, i.e. number of nodes |
-| n_his | length of sliding window, default 12 |
-| n_pred | predict horizon, default 3 |
+| test_length | length of testing data, default 1 |
+| epoch | epoch size during training |
+| lr | learning rate |
+| multi_layer | hyper parameter of STemGNN which controls the parameter number of hidden layers, default 5 |
+| device | device that the code works on, 'cpu' or 'cuda:x' | 
+| validate_freq | frequency of validation |
+| batch_size | batch size |
+| norm_method | method to normalize, 'z_score' or 'min_max' |
+| early_stop | whether to enable early stop, default False |
+
 
 **Table 1** Configurations for all datasets
 | Dataset | train | evaluate | node_cnt | window_size | horizon | norm_method |
 | -----   | ---- | ---- |---- |---- |---- | --- |
-| PEMS03 | True | True |  358 | 12 | 3 | z_score |
-| PEMS04 | True | True |  307 | 12 | 3 | z_score |
-| PEMS08 | True | True |  170 | 12 | 3 | z_score |
 | METR-LA | True | True | 207 | 12 | 3 | z_score |
 | PEMS-BAY | True | True |  325 | 12 | 3 | z_score |
+| PEMS03 | True | True |  358 | 12 | 3 | z_score |
+| PEMS04 | True | True |  307 | 12 | 3 | z_score |
 | PEMS07 | True | True | 228 | 12 | 3 | z_score |
-| Solar | True | True |  137 | 12 | 3 | z_score |
-| Electricity | True | True | 321 | 3 | 3 | z_score |
-| ECG5000| True | True | 140 | 12 | 3 | z_score |
+| PEMS08 | True | True |  170 | 12 | 3 | z_score |
 | COVID-19| True | True | 25 | 28 | 28 | z_score |
 
 ## Results
