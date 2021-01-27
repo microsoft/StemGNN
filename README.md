@@ -43,7 +43,7 @@ Since complex data cleansing is needed on the above datasets provided in the url
 The training procedure and evaluation procedure are all included in the `main.py`. To train and evaluate on some dataset, run the following command:
 
 ```train & evaluate
-python main.py --train True --evaluate True --dataset <name of csv file> --output_dir <path to output directory> --n_route <number of nodes> --window_size <length of sliding window> --horizon <predict horizon> --norm_method z_score --train_length 6 --validate_length 2 --test_length 2
+python main.py --train True --evaluate True --dataset <name of csv file> --output_dir <path to output directory> --n_route <number of nodes> --window_size <length of sliding window> --horizon <predict horizon> --norm_method z_score --train_length 7 --validate_length 2 --test_length 1
 ```
 
 The detailed descriptions about the parameters are as following:
@@ -85,20 +85,12 @@ Our model achieves the following performance on the 10 datasets:
 | -----   | ---- | ---- | ---- |
 | METR-LA | 2.56 | 5.06 | 6.46 |
 | PEMS-BAY | 1.23 | 2.48 | 2.63 |
-| PEMS07 | 2.14 | 4.01 | 5.01 |
-| Solar | 1.52 | 1.53 | 1.42 |
-| Electricity | 0.04 | 0.06 | 14.77 |
-| ECG5000 | 0.05 | 0.07 | 10.58 |
-
-**Table 3** (predict horizon: 12 steps)
-
-| Dataset | MAE  | RMSE | MAPE |
-| -----   | ---- | ---- | ---- |
 | PEMS03 | 14.32 | 21.64 | 16.24 |
 | PEMS04 | 20.24 | 32.15 | 10.03 |
+| PEMS07 | 2.14 | 4.01 | 5.01 |
 | PEMS08 | 15.83 | 24.93 | 9.26 |
 
-**Table 4** (predict horizon: 28 steps)
+**Table 3** (predict horizon: 28 steps)
 
 | Dataset | MAE  | RMSE | MAPE |
 | -----   | ---- | ---- | ---- |

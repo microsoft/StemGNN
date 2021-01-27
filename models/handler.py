@@ -10,6 +10,7 @@ import numpy as np
 import time
 import os
 
+from utils.math_utils import evaluate
 
 
 def save_model(model, model_dir, epoch=None):
@@ -35,13 +36,6 @@ def load_model(model_dir, epoch=None):
     with open(file_name, 'rb') as f:
         model = torch.load(f)
     return model
-
-
-def evaluate(target, forecast, axis=None):
-    mape = np.mean(np.abs(target - forecast) / (np.abs(target) + 1e-2), axis).astype(np.float64)
-    mae = np.mean(np.abs(target - forecast), axis).astype(np.float64)
-    rmse = np.sqrt(np.mean((target - forecast) ** 2, axis)).astype(np.float64)
-    return mape, mae, rmse
 
 
 def inference(model, dataloader, device, node_cnt, window_size, horizon):
@@ -82,7 +76,7 @@ def validate(model, dataloader, device, normalize_method, statistic,
     else:
         forecast, target = forecast_norm, target_norm
     score = evaluate(target, forecast)
-    score_by_node = evaluate(target, forecast, axis=(0, 1))
+    score_by_node = evaluate(target, forecast, by_node=True)
     end = datetime.now()
 
     score_norm = evaluate(target_norm, forecast_norm)
@@ -205,6 +199,8 @@ def test(test_data, args, result_train_file, result_test_file):
                                normalize_method=args.norm_method, norm_statistic=normalize_statistic)
     test_loader = torch_data.DataLoader(test_set, batch_size=args.batch_size, drop_last=False,
                                         shuffle=False, num_workers=0)
-    validate(model, test_loader, args.device, args.norm_method, normalize_statistic,
+    performance_metrics = validate(model, test_loader, args.device, args.norm_method, normalize_statistic,
                       node_cnt, args.window_size, args.horizon,
                       result_file=result_test_file)
+    mae, mape, rmse = performance_metrics['mae'], performance_metrics['mape'], performance_metrics['rmse']
+    print('Performance on test set: MAPE: {:5.2f} | MAE: {:5.2f} | RMSE: {:5.4f}'.format(mape, mae, rmse))

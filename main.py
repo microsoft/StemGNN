@@ -1,7 +1,6 @@
 import os
 import torch
-num_gpus = os.environ['CUDA_VISIBLE_DEVICES'].split(',').__len__()
-os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(f'{i}' for i in range(num_gpus))
+os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
 from datetime import datetime
 from models.handler import train, test
 import argparse
@@ -55,10 +54,14 @@ test_data = data[int((train_ratio + valid_ratio) * len(data)):]
 torch.manual_seed(0)
 if __name__ == '__main__':
     if args.train:
-        before_train = datetime.now().timestamp()
-        _, normalize_statistic = train(train_data, valid_data, args, result_train_file)
-        after_train = datetime.now().timestamp()
-        print(f'Training took {(after_train - before_train) / 60} minutes')
+        try:
+            before_train = datetime.now().timestamp()
+            _, normalize_statistic = train(train_data, valid_data, args, result_train_file)
+            after_train = datetime.now().timestamp()
+            print(f'Training took {(after_train - before_train) / 60} minutes')
+        except KeyboardInterrupt:
+            print('-' * 89)
+            print('Exiting from training early')
     if args.evaluate:
         before_evaluation = datetime.now().timestamp()
         test(test_data, args, result_train_file, result_test_file)
