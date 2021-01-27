@@ -64,7 +64,7 @@ The detailed descriptions about the parameters are as following:
 | device | device that the code works on, 'cpu' or 'cuda:x' | 
 | validate_freq | frequency of validation |
 | batch_size | batch size |
-| norm_method | method to normalize, 'z_score' or 'min_max' |
+| norm_method | method for normalization, 'z_score' or 'min_max' |
 | early_stop | whether to enable early stop, default False |
 
 
