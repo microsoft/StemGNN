@@ -116,7 +116,7 @@ def train(train_data, valid_data, args, result_file):
     elif args.norm_method == 'min_max':
         train_min = np.min(train_data, axis=0)
         train_max = np.max(train_data, axis=0)
-        normalize_statistic = {"min": train_min, "max": train_max}
+        normalize_statistic = {"min": train_min.tolist(), "max": train_max.tolist()}
     else:
         normalize_statistic = None
     if normalize_statistic is not None:
