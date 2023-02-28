@@ -39,3 +39,5 @@ venv.bak/
 output/
 .idea/
 test.py
+
+*.DS_Store
