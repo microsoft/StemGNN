@@ -1,5 +1,8 @@
+import sys
 import json
 from datetime import datetime
+
+sys.path.append("..")
 
 from data_loader.forecast_dataloader import ForecastDataset, de_normalized
 from models.base_model import Model
@@ -47,7 +50,7 @@ def inference(model, dataloader, device, node_cnt, window_size, horizon):
             inputs = inputs.to(device)
             target = target.to(device)
             step = 0
-            forecast_steps = np.zeros([inputs.size()[0], horizon, node_cnt], dtype=np.float)
+            forecast_steps = np.zeros([inputs.size()[0], horizon, node_cnt], dtype=float)
             while step < horizon:
                 forecast_result, a = model(inputs)
                 len_model_output = forecast_result.size()[1]

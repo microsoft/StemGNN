@@ -1,7 +1,7 @@
-import torch.utils.data as torch_data
 import numpy as np
-import torch
 import pandas as pd
+import torch
+import torch.utils.data as torch_data
 
 
 def normalized(data, normalize_method, norm_statistic=None):

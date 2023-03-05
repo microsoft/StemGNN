@@ -46,16 +46,43 @@ class StockBlockLayer(nn.Module):
     def spe_seq_cell(self, input):
         batch_size, k, input_channel, node_cnt, time_step = input.size()
         input = input.view(batch_size, -1, node_cnt, time_step)
-        ffted = torch.rfft(input, 1, onesided=False)
+
+        # New version(>1.7 version) of PyTorch:
+        # Use torch.fft.fft to computes the one-dimensional FFT of the input tensor along the last dimension.
+
+        # Note that the output tensor will be complex-valued when using torch.fft.fft.
+        # So you may need to extract the real and imaginary components of the tensor using
+        # torch.real() and torch.imag() functions, respectively.
+        # Instead of ffted[..., 0] and ffted[..., 1].
+
+        # Old version:
+        # ffted = torch.rfft(input, 1, onesided=False)
+        # real = ffted[..., 0].permute(0, 2, 1, 3).contiguous().reshape(batch_size, node_cnt, -1)
+        # img = ffted[..., 1].permute(0, 2, 1, 3).contiguous().reshape(batch_size, node_cnt, -1)
+
+        # New version:
+        # ffted = torch.fft.fft(input, dim=1)
+        # real = torch.real(ffted).permute(0, 2, 1, 3).contiguous().reshape(batch_size, node_cnt, -1)
+        # img = torch.imag(ffted).permute(0, 2, 1, 3).contiguous().reshape(batch_size, node_cnt, -1)
+
+        # Or also:
+        ffted = torch.view_as_real(torch.fft.fft(input, dim=1))
         real = ffted[..., 0].permute(0, 2, 1, 3).contiguous().reshape(batch_size, node_cnt, -1)
         img = ffted[..., 1].permute(0, 2, 1, 3).contiguous().reshape(batch_size, node_cnt, -1)
+
         for i in range(3):
             real = self.GLUs[i * 2](real)
             img = self.GLUs[2 * i + 1](img)
         real = real.reshape(batch_size, node_cnt, 4, -1).permute(0, 2, 1, 3).contiguous()
         img = img.reshape(batch_size, node_cnt, 4, -1).permute(0, 2, 1, 3).contiguous()
         time_step_as_inner = torch.cat([real.unsqueeze(-1), img.unsqueeze(-1)], dim=-1)
-        iffted = torch.irfft(time_step_as_inner, 1, onesided=False)
+
+        # Old version:
+        # iffted = torch.irfft(time_step_as_inner, 1, onesided=False)
+
+        # New version:
+        # iffted = torch.fft.irfft(time_step_as_inner, dim=1)
+        iffted = torch.fft.irfft(torch.view_as_complex(time_step_as_inner), n=time_step_as_inner.shape[1], dim=1)
         return iffted
 
     def forward(self, x, mul_L):
