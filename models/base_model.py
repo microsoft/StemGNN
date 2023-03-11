@@ -1,7 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from StemGNN_CE290.models.adjacancy import adjacancy
+import sys
+sys.path.append('../StemGNN_CE290')
+
+from ce290_data.adjacancy import adjacancy
 import numpy as np
 
 
@@ -88,8 +91,9 @@ class StockBlockLayer(nn.Module):
         return iffted
 
     def forward(self, x, mul_L):
-        mul_L = mul_L.unsqueeze(1)
-        x = x.unsqueeze(1)
+        # mul_L = mul_L.squeeze(1)
+        # x = x.unsqueeze(1)
+        print(mul_L)
         gfted = torch.matmul(mul_L, x)
         gconv_input = self.spe_seq_cell(gfted).unsqueeze(2)
         igfted = torch.matmul(gconv_input, self.weight)
@@ -201,14 +205,12 @@ class Model(nn.Module):
         # attention = torch.mean(attention, dim=0)
         # degree = torch.sum(attention, dim=1)
         attention_1 = torch.mean(attention, dim=0).unsqueeze(0)
-        print(attention_1)
         degree = torch.sum(attention_1, dim=0)
         # laplacian is sym or not
         attention = 0.5 * (attention + attention.T)
         degree_l = torch.diag(degree)
         diagonal_degree_hat = torch.diag(1 / (torch.sqrt(degree) + 1e-7))
-        laplacian = torch.matmul(diagonal_degree_hat,
-                                 torch.matmul(degree_l - attention, diagonal_degree_hat))
+        laplacian = degree_l - attention
         mul_L = self.cheb_polynomial(laplacian)
         return mul_L, attention
 

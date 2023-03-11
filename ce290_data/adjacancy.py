@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 import networkx as nx
-from data_cleaning import data_processing
-# from ce290_data.data_cleaning import data_processing
+# from data_cleaning import data_processing
+from ce290_data.data_cleaning import data_processing
 
 def adjacancy(filename):
     # 'ce290_data/data/mar2020.csv'
