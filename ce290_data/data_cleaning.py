@@ -5,6 +5,14 @@ class data_processing:
     Process the data from specified path.
     """
     def __init__(self, path):
+        self.all_airports = {'ABQ','ANC','ATL','AUS','BDL','BHM','BNA','BOS','BUF','BUR',
+                             'BWI','CLE','CLT','CVG','DAL','DAY','DCA','DEN','DFW','DTW',
+                             'EWR','FLL','GYY','HNL','HOU','HPN','IAD','IAH','IND','ISP',
+                             'JAX','JFK','LAS','LAX','LGA','LGB','MCI','MCO','MDW','MEM',
+                             'MHT','MIA','MKE','MSP','MSY','OAK','OGG','OMA','ONT','ORD',
+                             'OXR','PBI','PDX','PHL','PHX','PIT','PSP','PVD','RDU','RFD',
+                             'RSW','SAN','SAT','SDF','SEA','SFO','SJC','SJU','SLC','SMF',
+                             'SNA','STL','SWF','TEB','TPA','TUS','VNY'}
         self.path = path
 
     def data_cleaning(self):
@@ -44,8 +52,23 @@ class data_processing:
         pivoted = pd.pivot(merged, index='departure', columns='date', values='total_flights')
         pivoted.fillna(0, inplace=True)
         self.x_matrix = pivoted
+
+        if self.x_matrix.shape[0] < 77:
+            airports_check = set(self.x_matrix.reset_index()['departure'])
+            missing_airport = self.all_airports - airports_check
+            for i in missing_airport:
+                a = self.x_matrix.iloc[0:1,]
+                a = a.reset_index(drop=True)
+                a.index = [i]
+                a.loc[i] = 0
+                self.x_matrix = pd.concat([self.x_matrix, a])
+                self.x_matrix = self.x_matrix.sort_index(axis=0)
+
         return self.x_matrix
+
     
+
+
 
 
 ## Example
