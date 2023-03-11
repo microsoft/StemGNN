@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from StemGNN_CE290.models.adjacancy import adjacancy
+import numpy as np
 
 
 class GLU(nn.Module):
@@ -57,7 +59,7 @@ class StockBlockLayer(nn.Module):
 
         # Old version:
         # ffted = torch.rfft(input, 1, onesided=False)
-        # real = ffted[..., 0].permute(0, 2, 1, 3).contiguous().reshape(batch_size, node_cnt, -1)
+        # real = ffted[..., 0].perm\ute(0, 2, 1, 3).contiguous().reshape(batch_size, node_cnt, -1)
         # img = ffted[..., 1].permute(0, 2, 1, 3).contiguous().reshape(batch_size, node_cnt, -1)
 
         # New version:
@@ -106,6 +108,7 @@ class Model(nn.Module):
     def __init__(self, units, stack_cnt, time_step, multi_layer, horizon=1, dropout_rate=0.5, leaky_rate=0.2,
                  device='cpu'):
         super(Model, self).__init__()
+        self.filename = 'ce290_data/data/mar2020.csv'
         self.unit = units
         self.stack_cnt = stack_cnt
         self.unit = units
@@ -132,7 +135,7 @@ class Model(nn.Module):
 
     def get_laplacian(self, graph, normalize):
         """
-        return the laplacian of the graph.
+        Return the laplacian of the graph.
         :param graph: the graph structure without self loop, [N, N].
         :param normalize: whether to used the normalized laplacian.
         :return: graph laplacian.
@@ -160,6 +163,20 @@ class Model(nn.Module):
         multi_order_laplacian = torch.cat([first_laplacian, second_laplacian, third_laplacian, forth_laplacian], dim=0)
         return multi_order_laplacian
 
+    # Switch the order of func: self_graph_attention and func: latent_correlation_layer
+    def self_graph_attention(self, input):
+        input = input.permute(0, 2, 1).contiguous()
+        bat, N, fea = input.size()
+        key = torch.matmul(input, self.weight_key)
+        query = torch.matmul(input, self.weight_query)
+        data = key.repeat(1, 1, N).view(bat, N * N, 1) + query.repeat(1, N, 1)
+        data = data.squeeze(2)
+        data = data.view(bat, N, -1)
+        data = self.leakyrelu(data)
+        attention = F.softmax(data, dim=2)
+        attention = self.dropout(attention)
+        return attention
+
     def latent_correlation_layer(self, x):
         input, _ = self.GRU(x.permute(2, 0, 1).contiguous())
         input = input.permute(1, 0, 2).contiguous()
@@ -175,24 +192,31 @@ class Model(nn.Module):
         mul_L = self.cheb_polynomial(laplacian)
         return mul_L, attention
 
-    def self_graph_attention(self, input):
-        input = input.permute(0, 2, 1).contiguous()
-        bat, N, fea = input.size()
-        key = torch.matmul(input, self.weight_key)
-        query = torch.matmul(input, self.weight_query)
-        data = key.repeat(1, 1, N).view(bat, N * N, 1) + query.repeat(1, N, 1)
-        data = data.squeeze(2)
-        data = data.view(bat, N, -1)
-        data = self.leakyrelu(data)
-        attention = F.softmax(data, dim=2)
-        attention = self.dropout(attention)
-        return attention
+    def prior_topology(self, x):
+        # input, _ = self.GRU(x.permute(2, 0, 1).contiguous())
+        # input = input.permute(1, 0, 2).contiguous()
+        # attention = self.self_graph_attention(input)
+        attention = adjacancy(self.filename)
+        attention = torch.from_numpy(attention.astype(np.float32))
+        # attention = torch.mean(attention, dim=0)
+        # degree = torch.sum(attention, dim=1)
+        attention_1 = torch.mean(attention, dim=0).unsqueeze(0)
+        print(attention_1)
+        degree = torch.sum(attention_1, dim=0)
+        # laplacian is sym or not
+        attention = 0.5 * (attention + attention.T)
+        degree_l = torch.diag(degree)
+        diagonal_degree_hat = torch.diag(1 / (torch.sqrt(degree) + 1e-7))
+        laplacian = torch.matmul(diagonal_degree_hat,
+                                 torch.matmul(degree_l - attention, diagonal_degree_hat))
+        mul_L = self.cheb_polynomial(laplacian)
+        return mul_L, attention
 
     def graph_fft(self, input, eigenvectors):
         return torch.matmul(eigenvectors, input)
 
     def forward(self, x):
-        mul_L, attention = self.latent_correlation_layer(x)
+        mul_L, attention = self.prior_topology(x)
         X = x.unsqueeze(1).permute(0, 1, 3, 2).contiguous()
         result = []
         for stack_i in range(self.stack_cnt):
