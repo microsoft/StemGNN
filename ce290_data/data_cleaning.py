@@ -17,7 +17,7 @@ class data_processing:
 
     def data_cleaning(self):
         # Use vscode
-        df = pd.read_csv(f'./{self.path}').reset_index(drop=True).iloc[5:-5, [0,1,2,3,12,15,16]]
+        df = pd.read_csv(f'./{self.path}', low_memory=False).reset_index(drop=True).iloc[5:-5, [0,1,2,3,12,15,16]]
         
         # Use PyCharm
         # df = pd.read_csv(f'./{self.path}', header=1).iloc[:-5, :]
