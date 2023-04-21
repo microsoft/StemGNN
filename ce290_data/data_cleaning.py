@@ -62,6 +62,7 @@ class data_processing:
                 a.index = [i]
                 a.loc[i] = 0
                 self.x_matrix = pd.concat([self.x_matrix, a])
+                print(self.x_matrix)
                 self.x_matrix = self.x_matrix.sort_index(axis=0)
 
         return self.x_matrix

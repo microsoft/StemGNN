@@ -41,3 +41,4 @@ output/
 test.py
 
 *.DS_Store
+*.csv
