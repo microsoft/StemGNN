@@ -68,7 +68,10 @@ class DataLoader:
             self.x_test[i,:,:] = self.test[:,i:i+self.n_timesteps].T
             if combined_data is not None:
                 self.x_test[i,:,:] = self.x_test[i,:,:] @ xy_adj
-        return tf.convert_to_tensor(self.x_train), tf.convert_to_tensor(self.y_train), tf.convert_to_tensor(self.x_test), xy_adj
+        if combined_data is None:
+            return tf.convert_to_tensor(self.x_train), tf.convert_to_tensor(self.y_train), tf.convert_to_tensor(self.x_test)
+        else:
+            return tf.convert_to_tensor(self.x_train), tf.convert_to_tensor(self.y_train), tf.convert_to_tensor(self.x_test), xy_adj
 
 class LSTMoutput:
     def __init__(self, DataLoader, airport_index):
@@ -129,13 +132,20 @@ class LSTMoutput:
         plt.axvline(x=x_train_end-1, color='black', linestyle='--', linewidth=0.75)
         plt.legend()
 
-def aggregate_errors(testing_time_periods, n_replications, n_training, n_timestep, n_pred, adjacancy_matrix):
+def aggregate_errors(testing_time_periods, n_replications, n_training, n_timestep, n_pred, adjacancy_matrix, airport_list1=None, airport_list2=None, gnn=True):
     start_day = testing_time_periods - n_training - n_pred
     rmse = np.empty(shape=(n_replications, start_day.shape[0]))
     mae = np.empty(shape=(n_replications, start_day.shape[0]))
+    rmse_l1 = np.empty(shape=(n_replications, start_day.shape[0]))
+    mae_l1 = np.empty(shape=(n_replications, start_day.shape[0]))
+    rmse_l2 = np.empty(shape=(n_replications, start_day.shape[0]))
+    mae_l2= np.empty(shape=(n_replications, start_day.shape[0]))
     for i in range(start_day.shape[0]):
         loader = DataLoader('2020.csv', start_day[i], n_training, n_timestep, n_pred, 1, 366)
-        x_train, y_train, x_test, adj_matrix = loader.train_test_split(combined_data=adjacancy_matrix)
+        if gnn:
+            x_train, y_train, x_test, adj_matrix = loader.train_test_split(combined_data=adjacancy_matrix)
+        else:
+            x_train, y_train, x_test = loader.train_test_split()
         for j in range(n_replications):
             model = Sequential()
             model.add(LSTM(loader.n_pred*77, batch_input_shape=(loader.n_batch,loader.n_timesteps,77)))
@@ -146,14 +156,41 @@ def aggregate_errors(testing_time_periods, n_replications, n_training, n_timeste
             model.fit(x_train, y_train, epochs=100, batch_size=14)
             predicted = model.predict(x_test, batch_size=14)
             error = np.empty(1)
+            error_airportl1 = np.empty(1)
+            error_airportl2 = np.empty(1)
             for k in range(77):
                 result = LSTMoutput(loader, k)
                 result.inverse_transform(predicted)
                 error = np.append(error, [result.get_errors()])
+
+            for k2 in airport_list1:
+                result = LSTMoutput(loader, k2)
+                result.inverse_transform(predicted)
+                error_airportl1 = np.append(error, [result.get_errors()])
+
+            for k3 in airport_list2:
+                result = LSTMoutput(loader, k3)
+                result.inverse_transform(predicted)
+                error_airportl2 = np.append(error, [result.get_errors()])
+
             error = error[1:]
+            error_airportl1 = error_airportl1[1:]
+            error_airportl2 = error_airportl2[1:]
 
             rmse[j,i] = np.sum(error**2) # j replication, testing time frame i
             mae[j,i] = np.sum(np.abs(error))
-    return rmse, mae    
+            rmse_l1[j,i] = np.sum(error_airportl1**2) # j replication, testing time frame i
+            mae_l1[j,i] = np.sum(np.abs(error_airportl1))
+            rmse_l2[j,i] = np.sum(error_airportl2**2) # j replication, testing time frame i
+            mae_l2[j,i] = np.sum(np.abs(error_airportl2))
+
+    rmse = np.sqrt(rmse.mean(axis=1)/(77*n_pred*len(testing_time_periods)))
+    mae = mae.mean(axis=1)/(77*n_pred*len(testing_time_periods))
+    rmse_l1 = np.sqrt(rmse_l1.mean(axis=1)/(77*n_pred*len(testing_time_periods)))
+    mae_l1 = mae_l1.mean(axis=1)/(77*n_pred*len(testing_time_periods))
+    rmse_l2 = np.sqrt(rmse_l2.mean(axis=1)/(77*n_pred*len(testing_time_periods)))
+    mae_l2 = mae_l2.mean(axis=1)/(77*n_pred*len(testing_time_periods))
+
+    return rmse, mae, rmse_l1, mae_l1, rmse_l2, mae_l2
 
     
