@@ -1,4 +1,4 @@
 numpy==1.19.5
-scipy==1.5.4
+scipy==1.10.0
 pandas==1.1.5
 torch==1.7.1
