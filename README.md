@@ -1,7 +1,7 @@
 # Spectral Temporal Graph Neural Network for Multivariate Time-series Forecasting
 
 This repository is the official implementation of Spectral Temporal Graph Neural Network for
-Multivariate Time-series Forecasting.
+Multivariate Time-series Forecasting (https://arxiv.org/abs/2103.07719).
 
 ## Requirements
 
